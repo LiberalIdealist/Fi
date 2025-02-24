@@ -5,20 +5,23 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "dev:debug": "NODE_OPTIONS='--inspect' next dev"
+    "start": "PORT=8080 next start",
+    "lint": "eslint . --ext .ts,.tsx",
+    "dev:debug": "NODE_OPTIONS='--inspect' next dev",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@auth/core": "^0.34.2",
+    "@auth/core": "^0.37.4",
+    "@google/generative-ai": "^0.22.0",
     "axios": "^1.7.9",
     "next": "^15.1.7",
-    "next-auth": "^4.24.11",
+    "next-auth": "^4.24.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-error-boundary": "^5.0.0",
     "recharts": "^2.15.1",
-    "styled-components": "^6.1.15"
+    "styled-components": "^6.1.15",
+    "yfinance": "^0.0.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

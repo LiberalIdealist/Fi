@@ -1,10 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { AnalysisRequest, MarketAnalysis, RiskLevel } from "@/types/analysis";
-import { rateLimit } from "@/utils/rateLimit";
-import { cache } from "@/utils/cache";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { 
+  MarketAnalysis, 
+  AnalysisRequest,
+} from '@/types/analysis';
+import { exec } from 'child_process';
 
-const API_TIMEOUT = 30000; // 30 seconds
-const MAX_RETRIES = 3;
+const DEFAULT_TIMEOUT = 30000; // 30 seconds
+const DEFAULT_RETRIES = 3;
 
 class AnalysisError extends Error {
   constructor(
@@ -22,73 +24,66 @@ if (typeof process.env.GEMINI_API_KEY !== 'string') {
 }
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-export const SUPPORTED_LANGUAGES = {
-  en: "English",
-  hi: "Hindi",
-  ta: "Tamil",
-  te: "Telugu",
-  bn: "Bengali",
-} as const;
-
-type SupportedLanguage = keyof typeof SUPPORTED_LANGUAGES;
-
 const RISK_KEYWORDS = {
   high: ['volatile', 'risky', 'uncertain', 'unstable'],
   medium: ['moderate', 'stable', 'balanced'],
   low: ['safe', 'secure', 'consistent', 'reliable']
 };
 
-export async function getMarketAnalysis(
-  request: AnalysisRequest
-): Promise<MarketAnalysis> {
-  try {
-    const cachedAnalysis = await cache.get(getCacheKey(request));
-    if (cachedAnalysis) {
-      return JSON.parse(cachedAnalysis);
-    }
+const INDIAN_COMPANIES = [
+  "RELIANCE.NS",
+  "TCS.NS",
+  "HDFCBANK.NS",
+  "INFY.NS",
+  "HINDUNILVR.NS",
+  "ICICIBANK.NS",
+  "SBIN.NS",
+  "BHARTIARTL.NS",
+  "LT.NS",
+  "AXISBANK.NS",
+  "ADANIPORTS.NS",
+  "ASIANPAINT.NS",
+  "BAJFINANCE.NS",
+  "BAJAJFINSV.NS",
+  "BPCL.NS",
+  "BRITANNIA.NS",
+  "CIPLA.NS",
+  "COALINDIA.NS",
+  "DIVISLAB.NS",
+  "DRREDDY.NS",
+  "EICHERMOT.NS",
+  "GRASIM.NS",
+  "HCLTECH.NS",
+  "HDFC.NS",
+  "HEROMOTOCO.NS",
+  "HINDALCO.NS",
+  "ITC.NS",
+  "JSWSTEEL.NS",
+  "KOTAKBANK.NS",
+  "M&M.NS",
+  "MARUTI.NS",
+  "NESTLEIND.NS",
+  "NTPC.NS",
+  "ONGC.NS",
+  "POWERGRID.NS",
+  "SBILIFE.NS",
+  "SHREECEM.NS",
+  "SUNPHARMA.NS",
+  "TATACONSUM.NS",
+  "TATAMOTORS.NS",
+  "TATASTEEL.NS",
+  "TECHM.NS",
+  "TITAN.NS",
+  "ULTRACEMCO.NS",
+  "UPL.NS",
+  "WIPRO.NS",
+  "ZEEL.NS"
+];
 
-    if (!await rateLimit.check()) {
-      throw new AnalysisError('Rate limit exceeded', 'RATE_LIMIT_EXCEEDED');
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const prompt = generatePrompt(request);
-    
-    const result = await model.generateContent(prompt);
-    if (!result.response) {
-      throw new AnalysisError('No response from Gemini', 'NO_RESPONSE');
-    }
-
-    const text = result.response.text();
-    const metrics = await analyzeText(text);
-
-    const analysis: MarketAnalysis = {
-      type: request.type,
-      company: request.company,
-      language: request.language || 'en',
-      analysis: text,
-      metrics,
-      timestamp: new Date().toISOString()
-    };
-
-    await cache.set(getCacheKey(request), JSON.stringify(analysis), 3600);
-    return analysis;
-
-  } catch (error) {
-    console.error('Gemini API error:', error);
-    if (error instanceof AnalysisError) {
-      throw error;
-    }
-    throw new AnalysisError(
-      `Failed to generate market analysis: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      'ANALYSIS_FAILED'
-    );
-  }
-}
-
-function generatePrompt(request: AnalysisRequest): string {
+function generatePrompt(request: AnalysisRequest, stockData: string): string {
   return `
-    Analyze ${request.company} from ${request.type} perspective.
+    Analyze ${request.company} (${request.ticker}) from ${request.type} perspective, using the following stock data:
+    ${stockData}
     Include:
     - Key performance metrics
     - Risk factors and mitigation strategies
@@ -96,10 +91,62 @@ function generatePrompt(request: AnalysisRequest): string {
     - Competitive analysis
     - Future outlook
     
-    Provide detailed analysis in ${SUPPORTED_LANGUAGES[request.language || 'en']}.
+    Provide detailed analysis in English.
     Focus on Indian market context.
     Format the response in clear sections with bullet points.
+    Provide a summary and investment recommendation.
+    Also, provide 3 key highlights from the analysis.
   `.trim();
+}
+
+async function getStockData(ticker: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    exec(`python /workspaces/Fi/stock_data.py "${ticker}"`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`exec error: ${error}`);
+        reject(error);
+        return;
+      }
+      resolve(stdout);
+    });
+  });
+}
+
+export async function getMarketAnalysis(
+  request: AnalysisRequest
+): Promise<MarketAnalysis> {
+  try {
+    const ticker = request.ticker;
+    const stockData = await getStockData(ticker);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const prompt = generatePrompt(request, stockData);
+    
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    const metrics = {
+      score: Math.round(Math.random() * 100),
+      confidence: Math.round(Math.random() * 100),
+      risk: Math.round(Math.random() * 100)
+    };
+
+    // Split the response into analysis, summary, and key highlights
+    const [analysis, summary, ...keyHighlights] = text.split('\n\n');
+
+    return {
+      company: request.company,
+      type: request.type,
+      analysis: analysis,
+      summary: summary || '',
+      keyHighlights: keyHighlights.length > 0 ? keyHighlights : ['No key highlights available'],
+      metrics,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Analysis error:', error);
+    throw error;
+  }
 }
 
 async function analyzeText(text: string): Promise<MarketAnalysis['metrics']> {
@@ -115,7 +162,7 @@ async function analyzeText(text: string): Promise<MarketAnalysis['metrics']> {
 }
 
 function getCacheKey(request: AnalysisRequest): string {
-  return `analysis:${request.company}:${request.type}:${request.language}`;
+  return `analysis:${request.company}:${request.type}`;
 }
 
 // Helper functions
@@ -153,7 +200,7 @@ function calculateConfidence(analysis: string): number {
   return Math.max(0, Math.min(1, confidence));
 }
 
-function determineRisk(analysis: string): RiskLevel {
+function determineRisk(analysis: string): number {  // Changed return type to number
   const text = analysis.toLowerCase();
   let riskScore = 0;
   
@@ -165,7 +212,35 @@ function determineRisk(analysis: string): RiskLevel {
     });
   });
   
-  if (riskScore >= 4) return 'high';
-  if (riskScore >= 2) return 'medium';
-  return 'low';
+  // Convert risk score to a normalized number between 0 and 1
+  return Math.min(1, riskScore / 6);
+}
+
+export async function processWithGemini(prompt: string, timeout = DEFAULT_TIMEOUT, retries = DEFAULT_RETRIES) {
+  // Implementation
+}
+
+export async function processMarketAnalysis(request: AnalysisRequest): Promise<MarketAnalysis> {
+  try {
+    const text = `Analysis for ${request.company} regarding ${request.type}...`;
+    
+    const metrics = {
+      score: Math.random(),       // Normalized between 0 and 1
+      confidence: Math.random(),  // Normalized between 0 and 1
+      risk: Math.random()        // Normalized between 0 and 1
+    };
+
+    return {
+      company: request.company,
+      type: request.type,
+      analysis: text,
+      summary: '',
+      keyHighlights: ['No key highlights available'],
+      metrics,
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    console.error('Gemini processing error:', error);
+    throw new Error('Failed to process market analysis');
+  }
 }

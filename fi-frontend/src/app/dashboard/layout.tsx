@@ -1,61 +1,20 @@
-'use client';
+import "@/styles/globals.css";
+import { ReactNode } from "react";
+import Providers from "@/components/Providers";
+import { Inter } from "next/font/google";
+import Chatbot from '@/components/Chatbot';
 
-import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
-import { useCallback, type ReactNode } from 'react';
-import LoadingState from '@/components/LoadingState';
-import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
+const inter = Inter({ subsets: ["latin"] });
 
-function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
-  const handleReset = useCallback(() => {
-    resetErrorBoundary();
-  }, [resetErrorBoundary]);
-
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="glass-panel p-8 text-center">
-        <h2 className="text-xl font-semibold mb-4">Something went wrong</h2>
-        <p className="text-gray-400 mb-4">{error.message}</p>
-        <button
-          onClick={handleReset}
-          className="btn-primary"
-        >
-          Try again
-        </button>
+    <Providers>
+      <div className={`dark antialiased ${inter.className}`}>
+        <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100">
+          <main className="container mx-auto px-4 py-8">{children}</main>
+          <Chatbot />
+        </div>
       </div>
-    </div>
-  );
-}
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const { status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      redirect('/login');
-    },
-  });
-
-  if (status === 'loading') {
-    return <LoadingState />;
-  }
-
-  return (
-    <ErrorBoundary 
-      FallbackComponent={ErrorFallback}
-      onReset={() => {
-        // Clear any error state if needed
-        window.location.reload();
-      }}
-      onError={(error) => {
-        // Log to your error reporting service
-        console.error('[Dashboard Error]:', error);
-      }}
-    >
-      {children}
-    </ErrorBoundary>
+    </Providers>
   );
 }

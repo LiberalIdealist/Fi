@@ -26,26 +26,24 @@
   }
   
   .glass-panel {
-    @apply bg-gray-800/50 backdrop-blur-sm 
-           border border-gray-700 
-           rounded-xl shadow-xl;
+    @apply bg-gray-800/50 backdrop-blur-lg 
+           rounded-lg shadow-lg;
   }
 
   .gradient-heading {
-    @apply text-3xl font-bold bg-gradient-to-r 
-           from-blue-500 via-purple-500 to-pink-500 
-           bg-clip-text text-transparent;
-  }
-
-  .gradient-subheading {
-    @apply text-3xl font-bold bg-gradient-to-r 
-           from-green-400 to-cyan-400 
-           bg-clip-text text-transparent animate-gradient;
+    @apply text-3xl font-bold bg-clip-text 
+           text-transparent bg-gradient-to-r 
+           from-blue-400 to-emerald-400;
   }
 
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg 
-    transition-all duration-200 font-medium hover:shadow-lg hover:shadow-blue-500/25;
+    @apply px-4 py-2 bg-blue-500 
+           hover:bg-blue-600 text-white 
+           rounded-lg transition-colors;
+  }
+
+  .profile-image {
+    @apply rounded-full border-2 border-blue-500;
   }
 }
 

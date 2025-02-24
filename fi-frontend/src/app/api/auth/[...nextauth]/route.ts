@@ -1,5 +1,19 @@
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
+import { NextRequest, NextResponse } from "next/server";
 
-const handler = NextAuth(authConfig);
-export { handler as GET, handler as POST };
+export async function GET(req: NextRequest) {
+  return NextAuth(authConfig)(req, {
+    params: {
+      nextauth: req.nextUrl.pathname.split('/').slice(3),
+    },
+  });
+}
+
+export async function POST(req: NextRequest) {
+  return NextAuth(authConfig)(req, {
+    params: {
+      nextauth: req.nextUrl.pathname.split('/').slice(3),
+    },
+  });
+}

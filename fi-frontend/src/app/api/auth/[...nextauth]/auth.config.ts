@@ -1,7 +1,4 @@
-import NextAuth from "next-auth";
-import type { NextAuthOptions } from "next-auth";
-import type { JWT } from "next-auth/jwt";
-import type { Account, Profile, User } from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { handleAuthCallback, handleAuthError } from '@/utils/auth'
 
@@ -27,31 +24,22 @@ export const authConfig: NextAuthOptions = {
   ],
   pages: {
     signIn: '/login',
-    error: '/auth/error',
   },
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async redirect({ url, baseUrl }) {
-      return `${baseUrl}${handleAuthCallback(url)}`
+      // Handle the initial login
+      if (url.startsWith('/login')) {
+        return '/dashboard';
+      }
+      // Default to homepage for other cases
+      return url.startsWith(baseUrl) ? url : baseUrl;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
-        session.user.id = token.sub
+        session.user.id = token.sub;
       }
-      if (token.error) {
-        session.error = token.error
-      }
-      return session
-    },
-    async jwt({ token, account, user, profile }) {
-      if (account?.error) {
-        token.error = handleAuthError(
-          typeof account.error === 'string' ? account.error : 'Authentication failed'
-        ).error;
-      }
-      if (account?.access_token) {
-        token.accessToken = account.access_token;
-      }
-      return token
+      return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
