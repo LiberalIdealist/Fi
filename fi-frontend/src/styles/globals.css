@@ -6,10 +6,15 @@
   :root {
     --primary-gradient: linear-gradient(to right, #3b82f6, #8b5cf6);
     --secondary-gradient: linear-gradient(to right, #34d399, #06b6d4);
+    --background-start: #1a1a1a;
+    --background-end: #2d2d2d;
   }
 
   body {
     @apply bg-gray-900 text-white;
+    min-height: 100vh;
+    background: linear-gradient(to bottom, var(--background-start), var(--background-end));
+    color: white;
   }
 }
 
@@ -27,15 +32,20 @@
   }
 
   .gradient-heading {
-    @apply text-5xl font-bold bg-gradient-to-r 
+    @apply text-3xl font-bold bg-gradient-to-r 
            from-blue-500 via-purple-500 to-pink-500 
-           bg-clip-text text-transparent animate-gradient;
+           bg-clip-text text-transparent;
   }
 
   .gradient-subheading {
     @apply text-3xl font-bold bg-gradient-to-r 
            from-green-400 to-cyan-400 
            bg-clip-text text-transparent animate-gradient;
+  }
+
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg 
+    transition-all duration-200 font-medium hover:shadow-lg hover:shadow-blue-500/25;
   }
 }
 

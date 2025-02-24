@@ -1,6 +1,6 @@
 "use client";
 import { useSession, signIn } from "next-auth/react";
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -8,11 +8,15 @@ export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (session) {
+  const handleDashboardRedirect = useCallback(() => {
+    if (session?.user) {
       router.push("/dashboard");
     }
-  }, [session, router]);
+  }, [session?.user, router]);
+
+  useEffect(() => {
+    handleDashboardRedirect();
+  }, [handleDashboardRedirect]);
 
   if (status === "loading") {
     return (
@@ -21,6 +25,10 @@ export default function HomePage() {
       </div>
     );
   }
+
+  const handleGoogleSignIn = () => {
+    signIn("google", { callbackUrl: '/dashboard' });
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -59,7 +67,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex gap-4">
                   <button
-                    onClick={() => router.push('/dashboard')}
+                    onClick={handleDashboardRedirect}
                     className="group px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg transition-all duration-200 font-medium hover:shadow-lg hover:shadow-blue-500/25"
                   >
                     Go to Dashboard
@@ -77,7 +85,7 @@ export default function HomePage() {
                 Get Smarter with your Money in just a few clicks!
               </p>
               <button
-                onClick={() => signIn("google")}
+                onClick={handleGoogleSignIn}
                 className="group flex items-center justify-center space-x-2 w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg transition-all duration-200 font-medium hover:shadow-lg hover:shadow-blue-500/25"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

@@ -1,8 +1,16 @@
 "use client";
 import { useSession } from "next-auth/react";
+import { FinancialSummaryCard } from "./components/FinancialSummaryCard";
+import { RecentTransactionsCard } from "./components/RecentTransactionsCard";
+import { BudgetOverviewCard } from "./components/BudgetOverviewCard";
+import LoadingState from "@/components/LoadingState";
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+
+  if (status === "loading") {
+    return <LoadingState />;
+  }
 
   return (
     <div className="space-y-8">
@@ -15,22 +23,13 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Financial Summary Card */}
-        <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold mb-4">Financial Summary</h2>
-          {/* Add summary content */}
-        </div>
+        <FinancialSummaryCard />
 
         {/* Recent Transactions Card */}
-        <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold mb-4">Recent Transactions</h2>
-          {/* Add transactions list */}
-        </div>
+        <RecentTransactionsCard />
 
         {/* Budget Overview Card */}
-        <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold mb-4">Budget Overview</h2>
-          {/* Add budget content */}
-        </div>
+        <BudgetOverviewCard />
       </div>
     </div>
   );
