@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary-gradient: linear-gradient(to right, #3b82f6, #8b5cf6);
+    --secondary-gradient: linear-gradient(to right, #34d399, #06b6d4);
+  }
+
+  body {
+    @apply bg-gray-900 text-white;
+  }
+}
+
+@layer components {
+  .gradient-button {
+    @apply bg-gradient-to-r from-blue-500 to-purple-600 
+           hover:shadow-lg hover:shadow-blue-500/25 
+           transition-all duration-200;
+  }
+  
+  .glass-panel {
+    @apply bg-gray-800/50 backdrop-blur-sm 
+           border border-gray-700 
+           rounded-xl shadow-xl;
+  }
+
+  .gradient-heading {
+    @apply text-5xl font-bold bg-gradient-to-r 
+           from-blue-500 via-purple-500 to-pink-500 
+           bg-clip-text text-transparent animate-gradient;
+  }
+
+  .gradient-subheading {
+    @apply text-3xl font-bold bg-gradient-to-r 
+           from-green-400 to-cyan-400 
+           bg-clip-text text-transparent animate-gradient;
+  }
+}
+
+@layer utilities {
+  .animate-gradient {
+    background-size: 200% auto;
+    -webkit-animation: gradient 4s linear infinite;
+    -moz-animation: gradient 4s linear infinite;
+    animation: gradient 4s linear infinite;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  .backdrop-blur-sm {
+    -webkit-backdrop-filter: blur(8px);
+    -moz-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
