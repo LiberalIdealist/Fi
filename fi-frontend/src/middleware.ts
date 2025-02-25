@@ -1,30 +1,18 @@
-import { withAuth } from "next-auth/middleware";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export default withAuth(
-  function middleware(req) {
-    const token = req.nextauth.token;
-    const isAuth = !!token;
-    const isAuthPage = req.nextUrl.pathname.startsWith('/login');
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl.clone();
+  const session = req.cookies.get("next-auth.session-token"); // Ensure this cookie is actually being set
 
-    if (isAuthPage) {
-      if (isAuth) {
-        return NextResponse.redirect(new URL('/dashboard', req.url));
-      }
-      return null;
-    }
-
-    if (!isAuth) {
-      return NextResponse.redirect(new URL('/login', req.url));
-    }
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token,
-    },
+  if (!session && url.pathname.startsWith("/dashboard")) {
+    url.pathname = "/auth/signin";
+    return NextResponse.redirect(url);
   }
-);
 
+  return NextResponse.next();
+}
+
+// ✅ Correct matcher paths for Next.js Middleware
 export const config = {
-  matcher: ['/dashboard/:path*', '/login']
+  matcher: ["/dashboard/:path*", "/profile/:path*"], // Use route patterns, not file paths
 };

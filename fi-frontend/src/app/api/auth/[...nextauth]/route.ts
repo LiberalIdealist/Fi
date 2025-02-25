@@ -1,19 +1,9 @@
-import NextAuth from "next-auth";
-import { authConfig } from "./auth.config";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server"
+import NextAuth from "next-auth"
+import { authOptions } from "./auth.config"
 
-export async function GET(req: NextRequest) {
-  return NextAuth(authConfig)(req, {
-    params: {
-      nextauth: req.nextUrl.pathname.split('/').slice(3),
-    },
-  });
-}
+// NextAuth returns a request handler, but not always typed for Next.js 13
+const nextAuthHandler = NextAuth(authOptions)
 
-export async function POST(req: NextRequest) {
-  return NextAuth(authConfig)(req, {
-    params: {
-      nextauth: req.nextUrl.pathname.split('/').slice(3),
-    },
-  });
-}
+export const GET = nextAuthHandler
+export const POST = nextAuthHandler

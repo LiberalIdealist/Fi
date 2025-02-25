@@ -28,13 +28,9 @@ const Chatbot: React.FC = () => {
       timestamp: new Date()
     };
 
-    // Extract company name and ticker from input
-    const [companyName, ticker] = input.split(' ');
-
     const request: AnalysisRequest = {
-      company: companyName,
-      type: 'Market',
-      ticker: ticker
+      company: input.trim(),
+      type: 'Market'
     };
 
     try {
@@ -47,7 +43,7 @@ const Chatbot: React.FC = () => {
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: analysisResult.analysis,
+        content: analysisResult.summary,
         timestamp: new Date()
       };
 
@@ -55,7 +51,8 @@ const Chatbot: React.FC = () => {
       setInput('');
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Analysis failed');
+      const errorMessage = err instanceof Error ? err.message : 'Analysis failed';
+      setError(`Market analysis error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -89,7 +86,7 @@ const Chatbot: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAnalysisRequest()}
-            placeholder="Enter company name and ticker (e.g., Reliance RELIANCE.NS)"
+            placeholder="Enter company name (e.g., Reliance, TCS, Infosys)"
             className="flex-1 px-4 py-2 bg-gray-700 rounded-lg"
           />
         </div>
@@ -109,16 +106,25 @@ const Chatbot: React.FC = () => {
         )}
 
         {analysis && (
-          <div className="p-4 bg-gray-700/50 rounded-lg space-y-2">
-            <h3 className="font-semibold">{analysis.company} - {analysis.type} Analysis</h3>
-            <p className="text-gray-300 whitespace-pre-wrap">
-              {analysis.summary}
-            </p>
-            <ul className="list-disc list-inside text-gray-300">
-              {analysis.keyHighlights.map((highlight, index) => (
-                <li key={index}>{highlight}</li>
-              ))}
-            </ul>
+          <div className="p-4 bg-gray-700/50 rounded-lg space-y-4">
+            <h3 className="font-semibold text-lg">{analysis.company} - {analysis.type} Analysis</h3>
+            <p className="text-gray-300 whitespace-pre-wrap">{analysis.summary}</p>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-md">Key Highlights</h4>
+              <ul className="list-disc list-inside text-gray-300">
+                {analysis.keyHighlights.map((highlight, index) => (
+                  <li key={index}>{highlight}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <h4 className="font-semibold text-md">Detailed Analysis</h4>
+              <p className="text-gray-300 whitespace-pre-wrap">
+                Technical: {analysis.analysis.technical}
+                Fundamental: {analysis.analysis.fundamental}
+                Risk: {analysis.analysis.risk}
+              </p>
+            </div>
             <div className="flex gap-4 text-sm text-gray-400">
               <span>Score: {Math.round(analysis.metrics.score)}%</span>
               <span>Confidence: {Math.round(analysis.metrics.confidence)}%</span>

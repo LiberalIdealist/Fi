@@ -3,7 +3,11 @@ export type AnalysisType = 'Market' | 'Financial' | 'Risk' | 'Sentiment';
 export interface MarketAnalysis {
   company: string;
   type: AnalysisType;
-  analysis: string;
+  analysis: {
+    technical: string;
+    fundamental: string;
+    risk: string;
+  };
   summary: string;
   keyHighlights: string[];
   metrics: {
@@ -17,5 +21,5 @@ export interface MarketAnalysis {
 export interface AnalysisRequest {
   company: string;
   type: AnalysisType;
-  ticker: string;
+  ticker?: string; // Make ticker optional
 }
