@@ -41,3 +41,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function GET(req: NextRequest) {
+  try {
+    // Get user from session (more secure than using email from query)
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    
+    // Get the user profile from database
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: {
+        profile: true,
+        financialProfile: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Return formatted profile data
+    return NextResponse.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      completedQuestionnaire: !!user.financialProfile,
+      riskScore: user.financialProfile?.riskScore || null,
+      profile: user.profile,
+    });
+    
+  } catch (error) {
+    console.error("Profile fetch error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch profile" }, 
+      { status: 500 }
+    );
+  }
+}

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import type { QuestionnaireAnswers } from "@/types/shared";
+import { motion } from "framer-motion";
 
 interface FinancialQuestionnaireProps {
   onSubmit: (answers: QuestionnaireAnswers) => Promise<void>;
+  initialAnswers?: QuestionnaireAnswers;
 }
 
 interface MessageDisplayProps {
@@ -12,26 +14,27 @@ interface MessageDisplayProps {
   type?: 'success' | 'error';
 }
 
-const FinancialQuestionnaire: React.FC<FinancialQuestionnaireProps> = ({ onSubmit }) => {
-  const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
+interface QuestionCardProps {
+  question: {
+    id: string;
+    text: string;
+    options: string[];
+  };
+  value: string;
+  onChange: (id: string, value: string) => void;
+  isAnswered: boolean;
+}
+
+const FinancialQuestionnaire: React.FC<FinancialQuestionnaireProps> = ({ 
+  onSubmit, 
+  initialAnswers = {} 
+}) => {
+  const [answers, setAnswers] = useState<QuestionnaireAnswers>(initialAnswers);
   const [message, setMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState(0);
 
-  useEffect(() => {
-    // Save progress to localStorage
-    if (Object.keys(answers).length > 0) {
-      localStorage.setItem('questionnaire-progress', JSON.stringify(answers));
-    }
-  }, [answers]);
-
-  useEffect(() => {
-    // Load saved progress
-    const saved = localStorage.getItem('questionnaire-progress');
-    if (saved) {
-      setAnswers(JSON.parse(saved));
-    }
-  }, []);
-
+  // These questions are critical for risk assessment and must not be changed
   const questions = [
     { id: "q1", text: "How do you react to market volatility?", options: ["I panic and sell", "I stay invested but worry", "I see it as an opportunity", "I invest more"] },
     { id: "q2", text: "What is your primary financial goal?", options: ["Wealth Preservation", "Steady Growth", "High Growth", "Speculative Gains"] },
@@ -40,10 +43,7 @@ const FinancialQuestionnaire: React.FC<FinancialQuestionnaireProps> = ({ onSubmi
     { id: "q5", text: "How do you manage unexpected expenses?", options: ["Use savings", "Use credit card", "Take a loan", "Sell investments"] },
     { id: "q6", text: "What percentage of your income do you save monthly?", options: ["Less than 10%", "10-20%", "20-40%", "More than 40%"] },
     { id: "q7", text: "Do you have emergency savings?", options: ["No", "Less than 3 months", "3-6 months", "More than 6 months"] },
-    { id: "q8", text: "How do you choose financial products?", options: ["Friend’s advice", "Bank/Agent recommendations", "Research online", "Professional advisor"] },
-    { id: "q9", text: "Do you actively track and adjust your investments?", options: ["Never", "Once a year", "Quarterly", "Monthly"] },
-    { id: "q10", text: "What would you do if your portfolio dropped by 20%?", options: ["Sell everything", "Reduce exposure", "Hold and wait", "Buy more"] },
-    { id: "q11", text: "How diversified is your investment portfolio?", options: ["All in one asset", "Mostly one asset", "Moderately diversified", "Highly diversified"] },
+    { id: "q8", text: "How do you choose financial products?", options: ["Friend's advice", "Bank/Agent recommendations", "Research online", "Professional advisor"] },
     { id: "q12", text: "What is your primary source of investment information?", options: ["News & TV", "Online Blogs", "Financial Advisors", "Own Research"] },
     { id: "q13", text: "How do you feel about using AI for financial planning?", options: ["Uncomfortable", "Skeptical", "Neutral", "Excited"] },
     { id: "q14", text: "How frequently do you review your financial goals?", options: ["Never", "Annually", "Every 6 months", "Quarterly"] },

@@ -1,26 +1,57 @@
 import type { DefaultSession, DefaultUser } from "next-auth"
 import type { Profile } from "@prisma/client"
 
+// NextAuth Type Augmentation
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
-      id: string
-      name?: string | null
-      email?: string | null
-      image?: string | null
-      profile?: Profile | null
-    }
-    error?: string
+      id: string;
+      profile?: Profile | null;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+    };
+    error?: string;
   }
 
-  interface User extends DefaultUser {
-    id: string
-    profile?: Profile | null
+  interface User {
+    id: string;
+    profile?: Profile | null;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
   }
 }
 
-export interface QuestionnaireAnswers {
-  [key: string]: string;
+// JWT Type Augmentation
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    profile: Profile | null;
+    error?: string;
+  }
+}
+
+export type QuestionnaireAnswers = Record<string, string>;
+
+export interface Insight {
+  category: string;
+  text: string;
+}
+
+export interface FinancialAnalysis {
+  id: string;
+  userId: string;
+  riskScore: number;
+  summary: string;
+  insights: Insight[];
+  psychologicalProfile: string;
+  recommendedActions: string[];
+  timestamp: string;
+}
+
+export interface ExtendedFinancialAnalysis extends FinancialAnalysis {
+  suggestedFollowUps?: string[];
 }
 
 export interface Question {
@@ -45,7 +76,8 @@ export interface UserProfileData {
   image: string | null;
   completedQuestionnaire: boolean;
   riskScore: number | null;
-  profile: Profile | null;
+  profile?: Profile | null;
+  investmentStyle?: string | null; // Add this line
 }
 
 export interface DashboardProps {
