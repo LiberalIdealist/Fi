@@ -1,16 +1,17 @@
 "use client";
-import "@/styles/globals.css";
+import '@/styles/globals.css';  // Fix the import path
 import { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
+import { Providers } from '@/components/Providers';
 import ClientLayout from '@/components/ClientLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark antialiased">
-      <body className={`${inter.className} min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-gray-100`}>
-        <ClientLayout>{children}</ClientLayout>
+    <html lang="en" className="h-full bg-gray-900">
+      <body className={`${inter.className} h-full`}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

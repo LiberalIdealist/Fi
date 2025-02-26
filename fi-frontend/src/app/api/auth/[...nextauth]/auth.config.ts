@@ -4,7 +4,7 @@ import type { JWT } from "next-auth/jwt"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "@/lib/prisma/prisma"
+import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
 const requiredEnvVars = [
@@ -19,59 +19,16 @@ for (const envVar of requiredEnvVars) {
   }
 }
 
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error('Missing Google OAuth credentials')
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "text", placeholder: "user@example.com" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Missing email or password")
-        }
-
-        if (typeof credentials.email !== 'string') {
-          throw new Error("Invalid email format");
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          select: { 
-            id: true, 
-            name: true, 
-            email: true, 
-            password: true,
-            profile: true
-          },
-        })
-
-        if (!user || !user.password) {
-          throw new Error("User not found")
-        }
-
-        const isValidPassword = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
-
-        if (!isValidPassword) {
-          throw new Error("Invalid password")
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          profile: user.profile
-        }
-      },
     }),
   ],
   session: {
@@ -85,7 +42,7 @@ export const authOptions: NextAuthOptions = {
       }
       return token
     },
-    async session({ session, token }: { session: any; token: JWT }) {
+    async session({ session, token, user }: { session: any; token: JWT; user?: any }) {
       if (session?.user) {
         session.user.id = token.id
         session.user.profile = token.profile
@@ -96,6 +53,7 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/auth/signin",
+    error: "/auth/error",
   },
 }
 

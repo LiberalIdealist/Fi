@@ -1,14 +1,36 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import type { QuestionnaireAnswers } from "@/types/shared";
 
 interface FinancialQuestionnaireProps {
   onSubmit: (answers: QuestionnaireAnswers) => Promise<void>;
 }
 
+interface MessageDisplayProps {
+  message: string;
+  type?: 'success' | 'error';
+}
+
 const FinancialQuestionnaire: React.FC<FinancialQuestionnaireProps> = ({ onSubmit }) => {
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
   const [message, setMessage] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Save progress to localStorage
+    if (Object.keys(answers).length > 0) {
+      localStorage.setItem('questionnaire-progress', JSON.stringify(answers));
+    }
+  }, [answers]);
+
+  useEffect(() => {
+    // Load saved progress
+    const saved = localStorage.getItem('questionnaire-progress');
+    if (saved) {
+      setAnswers(JSON.parse(saved));
+    }
+  }, []);
 
   const questions = [
     { id: "q1", text: "How do you react to market volatility?", options: ["I panic and sell", "I stay invested but worry", "I see it as an opportunity", "I invest more"] },
@@ -32,41 +54,103 @@ const FinancialQuestionnaire: React.FC<FinancialQuestionnaireProps> = ({ onSubmi
     setAnswers((prev) => ({ ...prev, [id]: value }));
   };
 
+  const validateForm = () => {
+    const missingAnswers = questions
+      .filter(q => !answers[q.id])
+      .map(q => q.text);
+    if (missingAnswers.length > 0) {
+      setMessage(`Please answer all questions: ${missingAnswers.join(', ')}`);
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+    setIsLoading(true);
     try {
       await onSubmit(answers);
       setMessage("Profile saved successfully!");
     } catch (error) {
       setMessage("Error saving profile.");
       console.error('Error submitting questionnaire:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const Progress: React.FC = () => {
+    const answered = Object.keys(answers).length;
+    const total = questions.length;
+    const percentage = Math.round((answered / total) * 100);
+    
+    return (
+      <div className="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+        <div 
+          className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
+          style={{ width: `${percentage}%` }}
+          role="progressbar"
+          aria-valuenow={percentage}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        />
+      </div>
+    );
+  };
+
+  const MessageDisplay: React.FC<MessageDisplayProps> = ({ message, type = 'success' }) => (
+    <div 
+      className={`mt-4 p-3 rounded ${
+        type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+      }`}
+      role="alert"
+    >
+      {message}
+    </div>
+  );
 
   return (
     <div className="bg-gray-900 p-6 rounded-lg shadow-lg">
       <h2 className="text-xl font-bold text-white mb-4">Financial Risk & Behavior Questionnaire</h2>
-      {questions.map((q) => (
-        <div key={q.id} className="mb-4">
-          <label className="text-gray-200">{q.text}</label>
-          <select 
-            className="w-full p-2 mt-1 bg-gray-800 text-white rounded" 
-            onChange={(e) => handleChange(q.id, e.target.value)}
-            value={answers[q.id] || ""}
-          >
-            <option value="">Select an option</option>
-            {q.options.map((option, index) => (
-              <option key={index} value={option}>{option}</option>
-            ))}
-          </select>
-        </div>
-      ))}
-      <button 
-        className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-700 mt-4" 
-        onClick={handleSubmit}
-      >
-        Submit Answers
-      </button>
-      {message && <p className="text-green-400 mt-2">{message}</p>}
+      <Progress />
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}>
+        {questions.map((q) => (
+          <div key={q.id} className="mb-4">
+            <label className="text-gray-200" htmlFor={q.id}>{q.text}</label>
+            <select
+              id={q.id}
+              name={q.id}
+              aria-label={q.text}
+              aria-required="true"
+              aria-invalid={!answers[q.id]}
+              className="w-full p-2 mt-1 bg-gray-800 text-white rounded"
+              onChange={(e) => handleChange(q.id, e.target.value)}
+              value={answers[q.id] || ""}
+              required
+            >
+              <option value="">Select an option</option>
+              {q.options.map((option, index) => (
+                <option key={index} value={option}>{option}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+        <button 
+          type="submit"
+          className={`w-full py-2 rounded mt-4 text-white transition-colors duration-200 ${
+            isLoading 
+              ? 'bg-gray-500 cursor-not-allowed' 
+              : 'bg-blue-500 hover:bg-blue-700'
+          }`}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Saving...' : 'Submit Answers'}
+        </button>
+      </form>
+      {message && <MessageDisplay message={message} type={message.includes('Error') ? 'error' : 'success'} />}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 "use client";
 import { Component, ErrorInfo, ReactNode } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 
 interface Props {
   children: ReactNode;
@@ -9,7 +10,13 @@ interface State {
   hasError: boolean;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+const ErrorFallback = () => (
+  <div className="text-red-500 p-4">
+    Something went wrong. Please try again.
+  </div>
+);
+
+export class CustomErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false
   };

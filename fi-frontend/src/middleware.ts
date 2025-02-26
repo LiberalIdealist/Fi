@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-export function middleware(req: NextRequest) {
-  const url = req.nextUrl.clone();
-  const session = req.cookies.get("next-auth.session-token"); // Ensure this cookie is actually being set
-
-  if (!session && url.pathname.startsWith("/dashboard")) {
-    url.pathname = "/auth/signin";
-    return NextResponse.redirect(url);
+export async function middleware(request: NextRequest) {
+  const token = await getToken({ req: request });
+  
+  if (!token && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/auth/signin', request.url));
   }
-
+  
+  if (token && request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+  
   return NextResponse.next();
 }
 
-// ✅ Correct matcher paths for Next.js Middleware
 export const config = {
-  matcher: ["/dashboard/:path*", "/profile/:path*"], // Use route patterns, not file paths
+  matcher: ['/', '/dashboard/:path*']
 };
