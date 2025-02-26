@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/app/api/auth/[...nextauth]/auth.config";
 import { GoogleAuth } from 'google-auth-library';
 
+// Custom route for obtaining Vertex AI token
 export async function GET(req: NextRequest) {
   try {
     // Verify user is authenticated
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession({ ...authOptions });
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Not authenticated' }, 

@@ -1,19 +1,5 @@
 import NextAuth from "next-auth";
-import type { NextAuthOptions } from "next-auth";
-// Import your providers and other dependencies...
+import { authOptions } from "@/app/api/auth/[...nextauth]/auth.config";
 
-// Export the authOptions configuration
-export const authOptions: NextAuthOptions = {
-  providers: [
-    // Your configured providers...
-  ],
-  // Your NextAuth configuration...
-  callbacks: {
-    // Your callbacks...
-  },
-  // Other options...
-};
-
-// Create and export the NextAuth handler
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
