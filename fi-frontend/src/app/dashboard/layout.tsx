@@ -77,14 +77,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           {/* Replace gradient div with actual logo */}
                           <div className="h-10 w-10 relative">
                             <Image
-                              src="/logo.png" 
+                              src="/workspaces/Fi/fi-frontend/public/images/logo.png" 
                               alt="Fi Finance Logo"
                               fill
                               className="object-contain"
                             />
                           </div>
                           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-                            Fi Finance
+                            Fi by WealthME
                           </h1>
                         </div>
                         

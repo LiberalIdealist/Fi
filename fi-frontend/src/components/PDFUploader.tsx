@@ -2,16 +2,71 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { extractTextFromPDF } from "@/utils/pdfExtractor"; // Import the function
 
 export default function PDFUploader() {
   const { data: session } = useSession();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<string[]>([]);
+  const [documentText, setDocumentText] = useState<string | null>(null);
+  const [profileStage, setProfileStage] = useState<string | null>('initial');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files?.[0]) {
-      setSelectedFile(event.target.files[0]);
+  const generateAIAnalysis = async () => {
+    // Implement your AI analysis logic here
+    console.log("Generating AI analysis...");
+    // For now, just simulate a delay
+    return new Promise((resolve) => setTimeout(resolve, 2000));
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    setUploadStatus('uploading');
+    setError(null);
+    
+    try {
+      const files = Array.from(e.target.files);
+      
+      // Add uploaded document names to state
+      const newDocs = files.map(f => f.name);
+      setDocuments(prev => [...prev, ...newDocs]);
+      
+      setUploadStatus('success');
+      
+      // For PDFs, try to extract content
+      const pdfFiles = files.filter(file => file.type === 'application/pdf');
+      
+      if (pdfFiles.length > 0) {
+        setUploadStatus('analyzing');
+        
+        try {
+          // Extract text from first PDF only for simplicity
+          const pdfText = await extractTextFromPDF(pdfFiles[0]);
+          
+          // Store the extracted text for analysis
+          setDocumentText(pdfText || `Document: ${pdfFiles[0].name}`);
+          
+          // If we have text, proceed to analysis
+          setProfileStage('analysis');
+          await generateAIAnalysis();
+        } catch (error) {
+          console.error('Error analyzing PDF:', error);
+          // If PDF analysis fails, fall back to questionnaire
+          setProfileStage('questionnaire');
+        }
+      } else {
+        // No PDFs to analyze, move to questionnaire
+        setProfileStage('questionnaire');
+      }
+      
+      setUploadStatus('idle');
+    } catch (err) {
+      console.error('Error uploading documents:', err);
+      setUploadStatus('error');
+      setError('Document upload failed. Please try again.');
     }
   };
 

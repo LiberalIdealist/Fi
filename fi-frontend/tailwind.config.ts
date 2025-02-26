@@ -1,10 +1,17 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
-  mode: 'jit',
-  content: ['./src/**/*.{js,ts,jsx,tsx}'],
+import type { Config } from 'tailwindcss';
+import colors from 'tailwindcss/colors';
+import aspectRatio from '@tailwindcss/aspect-ratio';
+
+const config: Config = {
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
   theme: {
     extend: {
       colors: {
+        primary: colors.blue,
         'dark-bg': '#0F0F1A',
         'card-bg': '#1A1A2E',
       },
@@ -12,11 +19,9 @@ module.exports = {
         'gradient': 'gradient 15s ease infinite',
         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
-      // Add proper opacity modifiers
       backdropBlur: {
         lg: '16px',
       },
-      // Handle gradient opacity correctly
       backgroundColor: {
         'blue-500/20': 'rgba(59, 130, 246, 0.2)',
         'blue-500/10': 'rgba(59, 130, 246, 0.1)',
@@ -31,6 +36,8 @@ module.exports = {
   },
   plugins: [
     // Add this plugin for backdrop blur support
-    require('@tailwindcss/aspect-ratio'),
+    aspectRatio,
   ],
 };
+
+export default config;

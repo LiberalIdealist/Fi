@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { 
   RiArrowLeftLine, RiUpload2Line, RiFileTextLine,
   RiCheckLine, RiErrorWarningLine, RiLoader4Line
@@ -12,7 +11,8 @@ import FinancialQuestionnaire from '@/components/FinancialQuestionnaire';
 import AIProfileSummary from '@/components/AIProfileSummary';
 import FollowUpQuestions from '@/components/FollowUpQuestions';
 import type { QuestionnaireAnswers } from '@/types/shared';
-import { analyzeFinancialProfile, VertexAIResponse } from '@/utils/vertexAI';
+import { analyzeThroughChatGPT } from '@/utils/chatGptAnalyzer';
+import { extractTextFromPDF } from '@/utils/pdfExtractor';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error' | 'analyzing';
 type ProfileStage = 'initial' | 'document-upload' | 'questionnaire' | 'analysis' | 'complete';
@@ -36,7 +36,6 @@ export default function FinancialProfilePage() {
   const [profileStage, setProfileStage] = useState<ProfileStage>('initial');
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle');
   const [documents, setDocuments] = useState<string[]>([]);
-  const [hasCompletedQuestionnaire, setHasCompletedQuestionnaire] = useState(false);
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<QuestionnaireAnswers>({});
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -45,6 +44,7 @@ export default function FinancialProfilePage() {
   const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
   const [showFollowUps, setShowFollowUps] = useState(false);
   const [followUpAnswers, setFollowUpAnswers] = useState<Record<string, string>>({});
+  const [documentText, setDocumentText] = useState<string>('');
 
   // Fetch user's financial profile data
   useEffect(() => {
@@ -59,7 +59,6 @@ export default function FinancialProfilePage() {
           setIsLoadingProfile(false);
           // Uncomment this to simulate a user with existing profile
           // setProfileStage('complete');
-          // setHasCompletedQuestionnaire(true);
           // setDocuments(['financial_statement_2022.pdf']);
         }, 1000);
         
@@ -78,37 +77,47 @@ export default function FinancialProfilePage() {
     if (!e.target.files || e.target.files.length === 0) return;
     
     setUploadStatus('uploading');
+    setError(null);
     
     try {
-      const formData = new FormData();
-      Array.from(e.target.files).forEach((file) => {
-        formData.append('documents', file);
-      });
-      
-      // Simulated file upload and analysis
-      // Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const files = Array.from(e.target.files);
+      const pdfFiles = files.filter(file => file.type === 'application/pdf');
       
       // Add uploaded document names to state
-      const newDocs = Array.from(e.target.files).map(f => f.name);
+      const newDocs = files.map(f => f.name);
       setDocuments(prev => [...prev, ...newDocs]);
       
       setUploadStatus('success');
       
-      // After successful upload, start document analysis
-      setUploadStatus('analyzing');
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Determine if documents provide sufficient information
-      // For demo, randomly decide if docs are sufficient
-      const docsAreSufficient = Math.random() > 0.5;
-      
-      if (docsAreSufficient) {
-        // If docs are sufficient, move to analysis stage
-        setProfileStage('analysis');
-        generateAIAnalysis(true);
+      // If there are PDF files, extract their text for analysis
+      if (pdfFiles.length > 0) {
+        setUploadStatus('analyzing');
+        
+        try {
+          // Extract text from PDFs
+          const extractionPromises = pdfFiles.map(file => extractTextFromPDF(file));
+          const extractedTexts = await Promise.all(extractionPromises);
+          const combinedText = extractedTexts.join('\n\n');
+          
+          // Store the extracted text for analysis
+          setDocumentText(combinedText);
+          
+          // If we have enough text for analysis (more than 500 chars)
+          if (combinedText.length > 500) {
+            // Try to generate analysis directly from documents
+            setProfileStage('analysis');
+            await generateAIAnalysis(true);
+          } else {
+            // If documents don't contain enough information, move to questionnaire
+            setProfileStage('questionnaire');
+          }
+        } catch (error) {
+          console.error('Error analyzing documents:', error);
+          // If document analysis fails, fall back to questionnaire
+          setProfileStage('questionnaire');
+        }
       } else {
-        // If docs are insufficient, move to questionnaire
+        // No PDFs to analyze, move to questionnaire
         setProfileStage('questionnaire');
       }
       
@@ -124,7 +133,6 @@ export default function FinancialProfilePage() {
   const handleQuestionnaireSubmit = async (answers: QuestionnaireAnswers) => {
     try {
       setQuestionnaireAnswers(answers);
-      setHasCompletedQuestionnaire(true);
       
       // Process questionnaire answers
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -142,7 +150,7 @@ export default function FinancialProfilePage() {
   };
   
   // Generate AI analysis from documents and/or questionnaire
-  const generateAIAnalysis = async (fromDocsOnly: boolean) => {
+  const generateAIAnalysis = async (_fromDocsOnly: boolean) => {
     try {
       setError(null);
       
@@ -152,15 +160,15 @@ export default function FinancialProfilePage() {
           ...questionnaireAnswers,
           ...followUpAnswers
         },
-        documentAnalysis: documents.length > 0 ? { hasDocuments: true } : undefined,
+        documentText: documentText,
         userInfo: {
           name: session?.user?.name,
           email: session?.user?.email
         }
       };
       
-      // Start with initial analysis
-      const result = await analyzeFinancialProfile(analysisData);
+      // Start with initial analysis using ChatGPT
+      const result = await analyzeThroughChatGPT(analysisData);
       
       // If there are follow-up questions and we haven't shown them yet
       if (result.suggestedFollowUps && result.suggestedFollowUps.length > 0 && !showFollowUps) {
@@ -172,7 +180,7 @@ export default function FinancialProfilePage() {
       // If we've collected follow-up answers or there are none needed
       setAnalysisResult({
         id: 'analysis-' + Date.now(),
-        userId: session?.user?.email || 'anonymous',
+        userId: session?.user?.id || 'anonymous',
         riskScore: result.riskScore,
         summary: result.summary,
         insights: result.insights,
@@ -205,7 +213,6 @@ export default function FinancialProfilePage() {
   const restartProcess = () => {
     setProfileStage('initial');
     setDocuments([]);
-    setHasCompletedQuestionnaire(false);
     setQuestionnaireAnswers({});
     setAnalysisResult(null);
   };
@@ -314,7 +321,7 @@ export default function FinancialProfilePage() {
           <div className="text-center py-12 max-w-2xl mx-auto">
             <h2 className="text-xl font-bold text-white mb-4">Create Your Financial Profile</h2>
             <p className="text-gray-400 mb-8">
-              Let's create your personalized financial profile. We'll analyze your financial documents 
+              Let&apos;s create your personalized financial profile. We&apos;ll analyze your financial documents 
               and ask you some questions to understand your financial situation, goals, and risk tolerance.
             </p>
             

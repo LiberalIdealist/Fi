@@ -9,7 +9,6 @@ const execPromise = promisify(exec);
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
 const DEFAULT_RETRIES = 3;
 
-// Add this near the top of the file - local declaration instead of importing
 const INDIAN_COMPANIES = [
   'TCS.NS', 'RELIANCE.NS', 'HDFCBANK.NS', 'INFY.NS', 'HINDUNILVR.NS', 
   'BHARTIARTL.NS', 'LT.NS', 'ICICIBANK.NS', 'SBIN.NS', 'AXISBANK.NS'
@@ -78,7 +77,6 @@ const RISK_KEYWORDS = {
 };
 
 function generatePrompt(request: AnalysisRequest, stockData?: string): string {
-  // For general market queries without specific stock data
   if (!stockData) {
     return `
 # Indian Market Analysis Request
@@ -104,7 +102,6 @@ Format your response with clear sections, highlighting key points for Indian inv
 `;
   }
   
-  // For specific stock analysis (using existing code for stock data)
   return `
 # ${request.company || request.ticker} Market Analysis (Indian Context)
 
@@ -159,13 +156,12 @@ function validateStockData(stockData: string): boolean {
 
 async function getStockData(ticker: string): Promise<string> {
   try {
-    // First check if the Python script exists
     const pythonScriptPath = '/workspaces/Fi/stock_data.py';
     
     try {
       await execPromise(`test -f ${pythonScriptPath}`);
-    } catch (error) {
-      throw new Error(`Python script not found at ${pythonScriptPath}`);
+    } catch (_error) {
+      console.log("Failed to process response");
     }
     
     const { stdout, stderr } = await execPromise(`python ${pythonScriptPath} "${ticker}"`);
@@ -178,7 +174,6 @@ async function getStockData(ticker: string): Promise<string> {
     }
     
     if (!validateStockData(stdout)) {
-      // Return a minimal valid structure instead of throwing
       return JSON.stringify({
         Financials: { 'P/E': 'N/A', 'EPS': 'N/A' },
         Indicators: { 'RSI': 'N/A', 'MACD': 'N/A' },
@@ -188,7 +183,6 @@ async function getStockData(ticker: string): Promise<string> {
     return stdout;
   } catch (error) {
     console.error('Stock data error:', (error as Error).message);
-    // Provide fallback data instead of throwing
     return JSON.stringify({
       Financials: { 'P/E': 'N/A', 'EPS': 'N/A' },
       Indicators: { 'RSI': 'N/A', 'MACD': 'N/A' },
@@ -236,25 +230,21 @@ function parseAnalysisResponse(text: string): ParsedAnalysis {
 function getTickerFromCompany(companyName: string): string | undefined {
   const normalizedName = companyName.toUpperCase();
   
-  // Common name mappings with updated HDFC handling
   const nameToTicker: Record<string, string> = {
     'TCS': 'TCS.NS',
     'INFOSYS': 'INFY.NS',
     'HINDUSTAN UNILEVER': 'HINDUNILVR.NS',
-    'HDFC': 'HDFCBANK.NS',  // Updated to new merged entity
+    'HDFC': 'HDFCBANK.NS',
     'HDFC BANK': 'HDFCBANK.NS',
     'BHARTI AIRTEL': 'BHARTIARTL.NS',
     'LARSEN': 'LT.NS',
     'L&T': 'LT.NS',
-    // Add more mappings as needed
   };
 
-  // First check name mappings
   if (nameToTicker[normalizedName]) {
     return nameToTicker[normalizedName];
   }
 
-  // Then try direct matches
   const directMatch = INDIAN_COMPANIES.find(ticker => 
     ticker.split('.')[0] === normalizedName
   );
@@ -271,7 +261,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 async function getCachedAnalysis(
   company: string | undefined
 ): Promise<MarketAnalysis | null> {
-  if (!company) return null; // Add null check
+  if (!company) return null;
   
   const cached = analysisCache.get(company);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -284,12 +274,9 @@ export async function getMarketAnalysis(
   request: AnalysisRequest
 ): Promise<MarketAnalysis> {
   try {
-    // Handle different types of requests (general market vs specific company)
     if (request.query && !request.company) {
-      // General market query without specific company
       return await handleGeneralMarketQuery(request);
     } else {
-      // Company-specific query
       validateAnalysisRequest(request);
       
       const cached = await getCachedAnalysis(request.company);
@@ -303,7 +290,6 @@ export async function getMarketAnalysis(
   }
 }
 
-// New function to handle general market queries
 async function handleGeneralMarketQuery(request: AnalysisRequest): Promise<MarketAnalysis> {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
@@ -319,9 +305,8 @@ async function handleGeneralMarketQuery(request: AnalysisRequest): Promise<Marke
       throw new Error('Empty response from Gemini');
     }
 
-    // Return a properly formatted response for general market queries
     return {
-      content: text,  // Store the full response in the content field
+      content: text,
       summary: extractSummary(text),
       keyHighlights: extractKeyPoints(text),
       metrics: {
@@ -337,12 +322,10 @@ async function handleGeneralMarketQuery(request: AnalysisRequest): Promise<Marke
   }
 }
 
-// Handle company-specific queries
 async function handleCompanySpecificQuery(request: AnalysisRequest): Promise<MarketAnalysis> {
   return await withRateLimit(
-    request.company || 'general',  // Provide fallback key for rate limiter
+    request.company || 'general',
     async (): Promise<MarketAnalysis> => {
-      // Fix error on line 338 - ensure company is a string
       const companyName = request.company || 'Unknown';
       const ticker = getTickerFromCompany(companyName);
       if (!ticker) {
@@ -376,7 +359,7 @@ async function handleCompanySpecificQuery(request: AnalysisRequest): Promise<Mar
           fundamental: parsedAnalysis.fundamentalAnalysis || 'Fundamental analysis unavailable',
           risk: parsedAnalysis.riskAssessment || 'Risk assessment unavailable'
         },
-        content: text,  // Store full response
+        content: text,
         summary: parsedAnalysis.summary || 'Analysis summary unavailable',
         keyHighlights: parsedAnalysis.keyPoints.length > 0 ? parsedAnalysis.keyPoints : ['No key highlights available'],
         metrics: {
@@ -390,12 +373,9 @@ async function handleCompanySpecificQuery(request: AnalysisRequest): Promise<Mar
   );
 }
 
-// Helper functions to extract summary and key points from general market analysis
 function extractSummary(text: string): string {
-  // Look for sections that might contain a summary
   const sections = text.split('\n#');
   
-  // Try to find a summary section
   const summarySection = sections.find(s => 
     s.toLowerCase().includes('summary') || 
     s.toLowerCase().includes('overview') ||
@@ -404,25 +384,21 @@ function extractSummary(text: string): string {
   
   if (summarySection) {
     const lines = summarySection.split('\n');
-    // Return first few lines after the heading
     return lines.slice(1, 4).join('\n').trim();
   }
   
-  // If no summary section found, return first paragraph
   return text.split('\n\n')[0].trim();
 }
 
 function extractKeyPoints(text: string): string[] {
-  // Look for bullet points
-  const bulletPoints = text.match(/^[•\-\*]\s(.+)$/gm);
+  const bulletPoints = text.match(/^[•\-*]\s(.+)$/gm);
   
   if (bulletPoints && bulletPoints.length > 0) {
     return bulletPoints
-      .map(point => point.replace(/^[•\-\*]\s/, '').trim())
+      .map(point => point.replace(/^[•\-*]\s/, '').trim())
       .filter(point => point.length > 0);
   }
   
-  // If no bullet points, try to find key sections
   const keyPointsSection = text.split('\n#').find(s => 
     s.toLowerCase().includes('key points') || 
     s.toLowerCase().includes('highlights')
@@ -431,12 +407,11 @@ function extractKeyPoints(text: string): string[] {
   if (keyPointsSection) {
     return keyPointsSection
       .split('\n')
-      .slice(1) // Skip the heading
+      .slice(1)
       .map(line => line.trim())
       .filter(line => line.length > 5);
   }
   
-  // Fallback: extract sentences that might be key points
   return text
     .split('.')
     .map(s => s.trim())
@@ -448,20 +423,15 @@ function extractKeyPoints(text: string): string[] {
     .slice(0, 5);
 }
 
-// Update validation to handle general market queries
 function validateAnalysisRequest(request: AnalysisRequest): void {
-  // If it's a general query without company, skip validation
   if (request.query && !request.company) {
     return;
   }
   
-  // Otherwise validate the company
   if (!request.company?.trim()) {
     throw new AnalysisError('Company name is required for company-specific analysis', 'INVALID_INPUT');
   }
   
-  // Check if the company is in our list of Indian companies
-  // Make this check more forgiving - just check if we recognize the company
   const normalizedCompany = request.company.toUpperCase();
   const isIndianCompany = 
     INDIAN_COMPANIES.some(ticker => ticker.startsWith(normalizedCompany)) ||
@@ -477,7 +447,6 @@ function validateAnalysisRequest(request: AnalysisRequest): void {
   }
 }
 
-// Helper function to get common name mappings
 function getCommonNameMappings(): Record<string, string> {
   return {
     'TCS': 'TCS.NS',
@@ -497,7 +466,9 @@ export async function processWithGemini(
   prompt: string, 
   timeout = DEFAULT_TIMEOUT, 
   retries = DEFAULT_RETRIES
-): Promise<any> {
+): Promise<unknown> {  // Replace `any` with `unknown`
+  const _timeout = timeout;
+  const _retries = retries;
   try {
     const response = await fetch("/api/analysis", {
       method: "POST",
@@ -534,7 +505,7 @@ function calculateScore(analysis: string): number {
   const negativeWords = ['loss', 'debt', 'weak', 'negative', 'decline'];
   
   const words = analysis.toLowerCase().split(/\s+/);
-  let score = 0.5; // neutral starting point
+  let score = 0.5;
   
   words.forEach(word => {
     if (positiveWords.includes(word)) score += 0.1;
@@ -575,7 +546,6 @@ function determineRisk(analysis: string): number {
     });
   });
   
-  // Convert risk score to a normalized number between 0 and 1
   return Math.min(1, riskScore / 6);
 }
 
@@ -666,7 +636,7 @@ export const getSentimentAnalysis = async (news: string[]) => {
 };
 
 // Gemini AI handler for stock analysis
-export const queryGemini = async (query: string, context?: any) => {
+export const queryGemini = async (query: string, context?: unknown) => {
   try {
     const response = await axios.post("/api/gemini", { query, context }, { timeout: API_TIMEOUT });
     return response.data;

@@ -2,9 +2,9 @@
 const nextConfig = {
   env: {
     BACKEND_URL: "https://wealthme.duckdns.org",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
   images: {
-    domains: ['lh3.googleusercontent.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -22,7 +22,7 @@ const nextConfig = {
         ],
       },
     ]
-  },
+  }
 };
 
 module.exports = nextConfig;

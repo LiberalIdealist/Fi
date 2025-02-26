@@ -1,15 +1,19 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 
 const prismaClientSingleton = () => {
-  return new PrismaClient()
-}
+  return new PrismaClient();
+};
 
-declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>
-}
+// Fix the global declaration to properly type prisma on globalThis
+type GlobalWithPrisma = typeof globalThis & {
+  prisma: ReturnType<typeof prismaClientSingleton> | undefined;
+};
 
-const prisma = globalThis.prisma ?? prismaClientSingleton()
+// Access prisma through the properly typed global object
+const globalWithPrisma = globalThis as GlobalWithPrisma;
 
-if (process.env.NODE_ENV !== 'production') globalThis.prisma = prisma
+const prisma = globalWithPrisma.prisma ?? prismaClientSingleton();
 
-export { prisma }
+if (process.env.NODE_ENV !== 'production') globalWithPrisma.prisma = prisma;
+
+export { prisma };

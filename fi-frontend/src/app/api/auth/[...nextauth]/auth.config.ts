@@ -37,7 +37,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials, req) {
+      async authorize(credentials, _req) {  // Add underscore to req
         if (!credentials) {
           return null;
         }
@@ -56,9 +56,9 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ 
-      user, 
-      account, 
-      profile 
+      user: _user,  // Rename to _user within the function
+      account: _account,  // Rename to _account within the function
+      profile: _profile  // Rename to _profile within the function
     }: { 
       user: User; 
       account: Account | null; 

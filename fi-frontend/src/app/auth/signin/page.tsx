@@ -1,39 +1,61 @@
-'use client';
+"use client";
 
-import { signIn } from 'next-auth/react';
+import React, { Suspense } from 'react';
+import SignInForm from '@/components/auth/SignInForm';
+import { AuthProviders } from '@/components/auth/AuthProviders';
 import { useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
 
-export default function SignIn() {
+// Create a client component that uses useSearchParams
+function SignInContent() {
+  // This component can safely use useSearchParams()
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
-
-  // Redirect handler for sign-in buttons
-  const handleSignIn = async (provider: string) => {
-    await signIn(provider, {
-      callbackUrl,
-    });
-  };
+  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard'; // Add null check with ?
+  const error = searchParams?.get('error'); // Add null check with ?
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-4">
-      <div className="w-full max-w-md bg-gray-800 rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-white text-center mb-6">Sign In</h1>
+    <div className="max-w-md w-full space-y-8">
+      {error && (
+        <div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg">
+          {error === 'CredentialsSignin' 
+            ? 'Invalid email or password' 
+            : 'Something went wrong. Please try again.'}
+        </div>
+      )}
+      
+      <SignInForm callbackUrl={callbackUrl} />
+      
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-2 text-gray-500 bg-white">Or sign in with</span>
+        </div>
+      </div>
+      
+      <AuthProviders callbackUrl={callbackUrl} />
+    </div>
+  );
+}
 
-        <button
-          onClick={() => handleSignIn('google')}
-          className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 font-medium py-3 px-4 rounded-lg mb-4 transition-all"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path
-              fill="currentColor"
-              d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
-            />
-          </svg>
-          Continue with Google
-        </button>
-
-        {/* Additional authentication options would go here */}
+// Main page component with Suspense wrapper
+export default function SignInPage() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col items-center justify-center w-full max-w-md space-y-8">
+        <div>
+          <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to Fi
+          </h1>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Your AI-powered personal finance assistant
+          </p>
+        </div>
+        
+        {/* Wrap the component with Suspense */}
+        <Suspense fallback={<div className="w-full text-center">Loading...</div>}>
+          <SignInContent />
+        </Suspense>
       </div>
     </div>
   );

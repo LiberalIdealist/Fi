@@ -134,7 +134,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
         {messages.length === 0 ? (
           <div className="text-gray-400 text-center py-10">
             <p>Ask any question about Indian markets or specific companies.</p>
-            <p className="text-sm mt-1">Example: "How are IT stocks performing in India?" or "Analyze Reliance Industries"</p>
+            <p className="text-sm mt-1">Example: &quot;How are IT stocks performing in India?&quot; or &quot;Analyze Reliance Industries&quot;</p>
           </div>
         ) : (
           <div className="space-y-4">

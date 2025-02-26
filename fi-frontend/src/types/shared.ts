@@ -89,3 +89,14 @@ export interface ApiResponse<T> {
   error?: string;
   status: number;
 }
+
+export interface AnalysisResult {
+  id: string;
+  userId: string;
+  riskScore: number;
+  summary: string;
+  insights: { category: string; text: string }[];
+  psychologicalProfile: string;
+  recommendedActions: string[];
+  timestamp: string;
+}
