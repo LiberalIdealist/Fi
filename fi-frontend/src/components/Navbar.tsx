@@ -49,42 +49,54 @@ const Navbar: React.FC = () => {
   };
 
   return (
-    <NavbarContainer>
-      <Link href="/" style={{ textDecoration: 'none' }}>
-        <Logo />
-      </Link>
-      <NavLinks>
-        {session ? (
-          <>
-            <Link href="/profile" className="flex items-center space-x-2">
-              {session.user?.image && (
-                <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                  <Image
-                    src={session.user.image}
-                    alt={session.user.name || "Profile"}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-              )}
-            </Link>
-            <button 
-              onClick={handleSignOut}
-              className="btn-primary"
-            >
-              Sign Out
-            </button>
-          </>
-        ) : (
-          <button 
-            onClick={handleSignIn}
-            className="btn-primary"
-          >
-            Sign In
-          </button>
-        )}
-      </NavLinks>
-    </NavbarContainer>
+    <nav className="bg-gray-900/60 backdrop-blur-md border-b border-gray-800/50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/images/fi-logo.png"
+              alt="Fi Logo"
+              width={120}
+              height={40}
+              priority
+              className="object-contain"
+            />
+          </Link>
+          
+          <NavLinks>
+            {session ? (
+              <>
+                <Link href="/profile" className="flex items-center space-x-2">
+                  {session.user?.image && (
+                    <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                      <Image
+                        src={session.user.image}
+                        alt={session.user.name || "Profile"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                </Link>
+                <button 
+                  onClick={handleSignOut}
+                  className="btn-primary"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={handleSignIn}
+                className="btn-primary"
+              >
+                Sign In
+              </button>
+            )}
+          </NavLinks>
+        </div>
+      </div>
+    </nav>
   );
 }
 

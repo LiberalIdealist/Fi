@@ -81,7 +81,7 @@ export default function HomePage() {
           {[
             { title: 'AI Analysis', description: 'Intelligent insights from your financial data' },
             { title: 'Risk Assessment', description: 'Understand your risk profile with precision' },
-            { title: 'Document Processing', description: 'Upload statements for automatic analysis' }
+            { title: 'Portfolio Generation', description: 'Let AI generate perfect investment mix' }
           ].map((feature, index) => (
             <motion.div 
               key={index}
