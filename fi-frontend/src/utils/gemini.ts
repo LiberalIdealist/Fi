@@ -466,7 +466,7 @@ export async function processWithGemini(
   prompt: string, 
   timeout = DEFAULT_TIMEOUT, 
   retries = DEFAULT_RETRIES
-): Promise<unknown> {  // Replace `any` with `unknown`
+): Promise<unknown> {
   const _timeout = timeout;
   const _retries = retries;
   try {
@@ -477,14 +477,23 @@ export async function processWithGemini(
     });
 
     if (!response.ok) {
-      throw new Error("API request failed");
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+
+    // Check content type to ensure we're getting JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // Try to get the text to see what we received
+      const text = await response.text();
+      console.error("Received non-JSON response:", text.substring(0, 100));
+      throw new Error("Expected JSON response but got: " + contentType);
     }
 
     const data = await response.json();
     return data;
   } catch (error) {
     console.error("Error fetching market analysis:", error);
-    throw new Error("Analysis request failed");
+    throw new Error(`Analysis request failed: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 

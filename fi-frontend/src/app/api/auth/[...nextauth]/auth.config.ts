@@ -56,56 +56,34 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ 
-      user: _user,  // Rename to _user within the function
-      account: _account,  // Rename to _account within the function
-      profile: _profile  // Rename to _profile within the function
-    }: { 
-      user: User; 
-      account: Account | null; 
-      profile?: Profile | undefined; 
+      user, 
+      account, 
+      profile, 
+      email, 
+      credentials 
     }) {
       return true;
     },
     async redirect({ 
       url, 
       baseUrl 
-    }: { 
-      url: string; 
-      baseUrl: string;
     }) {
-      // Force redirect to dashboard after sign in
-      if (url.startsWith(baseUrl)) {
-        return `${baseUrl}/dashboard`;
-      } else if (url.startsWith('/')) {
-        return `${baseUrl}${url}`;
-      }
       return baseUrl;
     },
     async session({ 
       session, 
-      token 
-    }: { 
-      session: Session; 
-      token: JWT;
+      token, 
+      user 
     }) {
-      if (token && session.user) {
-        if (token.sub) {
-          session.user.id = token.sub;
-        }
-      }
       return session;
     },
     async jwt({ 
       token, 
-      user 
-    }: { 
-      token: JWT; 
-      user?: User | undefined;
+      user, 
+      account, 
+      profile, 
+      isNewUser 
     }) {
-      // Add custom JWT logic here
-      if (user) {
-        token.id = user.id;
-      }
       return token;
     }
   },
