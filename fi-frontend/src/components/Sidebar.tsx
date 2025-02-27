@@ -7,7 +7,8 @@ import {
   RiDashboardLine, 
   RiFileList3Line,
   RiUserLine,
-  RiSettings4Line 
+  RiSettings4Line,
+  RiFileTextLine
 } from 'react-icons/ri';
 import Image from 'next/image';
 
@@ -22,6 +23,7 @@ const navigation: NavItem[] = [
   { name: 'Documents', href: '/dashboard/documents', icon: RiFileList3Line },
   { name: 'Profile', href: '/dashboard/profile', icon: RiUserLine },
   { name: 'Settings', href: '/dashboard/settings', icon: RiSettings4Line },
+  { name: 'Financial Questionnaire', href: '/dashboard/gemini-questionnaire', icon: RiFileTextLine },
 ];
 
 export default function Sidebar() {

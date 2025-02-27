@@ -6,7 +6,30 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { AuthOptions } from "next-auth"
+
+// Extend the next-auth types
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      image?: string | null;
+      role?: string;
+    }
+  }
+
+  interface User {
+    role?: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: string;
+  }
+}
 
 const requiredEnvVars = [
   'GOOGLE_CLIENT_ID',
@@ -24,79 +47,85 @@ if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
   throw new Error('Missing Google OAuth credentials');
 }
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as Adapter,
+export const authOptions: AuthOptions = {
+  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
+    // Add credentials provider for dev/test users
     CredentialsProvider({
-      name: "credentials",
+      name: "Development Credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials, _req) {  // Add underscore to req
-        if (!credentials) {
-          return null;
+      async authorize(credentials) {
+        // Hard-coded users for development
+        const users = [
+          { 
+            id: "admin-id",
+            name: "Administrator", 
+            email: "admin@example.com", 
+            username: "admin", // Note the username field here
+            password: "admin123",
+            role: "admin"
+          },
+          { 
+            id: "user-id",
+            name: "Test User", 
+            email: "user@example.com", 
+            username: "user", // Note the username field here
+            password: "user123",
+            role: "user" 
+          }
+        ];
+        
+        const user = users.find(user => 
+          user.username === credentials?.username && 
+          user.password === credentials?.password
+        );
+        
+        if (user) {
+          // Return user without the password
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            image: null
+          };
         }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
-        });
-
-        if (user && user.password && bcrypt.compareSync(credentials.password, user.password)) {
-          return user;
-        } else {
-          return null;
-        }
+        
+        return null;
       }
-    })
+    }),
   ],
   callbacks: {
-    async signIn({ 
-      user, 
-      account, 
-      profile, 
-      email, 
-      credentials 
-    }) {
-      return true;
+    async jwt({ token, user }) {
+      // Add role to token if available from user
+      if (user?.role) {
+        token.role = user.role;
+      }
+      return token;
     },
-    async redirect({ 
-      url, 
-      baseUrl 
-    }) {
-      return baseUrl;
-    },
-    async session({ 
-      session, 
-      token, 
-      user 
-    }) {
+    async session({ session, token }) {
+      // Add role to session from token
+      if (token?.role) {
+        session.user.role = token.role;
+      }
       return session;
     },
-    async jwt({ 
-      token, 
-      user, 
-      account, 
-      profile, 
-      isNewUser 
-    }) {
-      return token;
-    }
-  },
-  pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
   },
   secret: process.env.NEXTAUTH_SECRET,
   session: {
-    strategy: "jwt" as const, // Explicitly typed as const to match SessionStrategy
+    strategy: "jwt", // Required for credentials provider
   },
-  debug: process.env.NODE_ENV === "development"
-};
+  pages: {
+    signIn: '/auth/signin',
+  },
+}
 
 // Export the handler for the route.ts file to use
 export default NextAuth(authOptions);

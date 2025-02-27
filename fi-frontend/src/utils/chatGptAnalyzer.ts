@@ -19,93 +19,96 @@ interface AnalysisResult {
   suggestedFollowUps?: string[];
 }
 
+interface UserProfileData {
+  questionnaireAnswers?: Record<string, string>;
+  riskScore?: number;
+  financialSummary?: string;
+  insights?: Record<string, string>;
+  userInfo?: {
+    name?: string | null;
+    email?: string | null;
+  };
+  documentAnalyses?: Array<{
+    documentType: string;
+    summary: string;
+    createdAt: string;
+  }>;
+}
+
+interface PortfolioRecommendation {
+  fixedDeposits: {
+    percentage: number;
+    recommendations: Array<{
+      type: string;
+      term: string;
+      expectedReturn: string;
+      rationale: string;
+    }>;
+  };
+  stocks: {
+    percentage: number;
+    recommendations: Array<{
+      name: string;
+      sector: string;
+      rationale: string;
+    }>;
+  };
+  mutualFunds: {
+    percentage: number;
+    debt: Array<{
+      name: string;
+      type: string;
+      rationale: string;
+    }>;
+    hybrid: Array<{
+      name: string;
+      type: string;
+      rationale: string;
+    }>;
+    equity: Array<{
+      name: string;
+      type: string;
+      rationale: string;
+    }>;
+  };
+  insurance: {
+    health: {
+      coverAmount: string;
+      type: string;
+      rationale: string;
+    };
+    life: {
+      coverAmount: string;
+      type: string;
+      rationale: string;
+    };
+    term: {
+      coverAmount: string;
+      term: string;
+      rationale: string;
+    };
+  };
+}
+
+interface SwotAnalysis {
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
+}
+
+interface ChatGptResult {
+  userProfile: string;
+  portfolio: PortfolioRecommendation;
+  swotAnalysis: SwotAnalysis;
+}
+
 export async function analyzeThroughChatGPT(data: AnalysisData): Promise<AnalysisResult> {
   try {
     // Format the data for ChatGPT
-    const systemPrompt = `You are an expert financial analyst and behavioral psychologist. Analyze the user's financial data and questionnaire answers to create a comprehensive financial and psychological profile. Include:
-1. A risk score from 1 to 10 (where 1 is most conservative and 10 is most aggressive)
-2. A summary of their financial behavior and profile
-3. Specific insights in these categories: Risk Tolerance, Financial Habits, Investment Approach, and Psychological Tendencies
-4. A psychological profile report with explaination analyzing their relationship with money
-5. 3-5 recommended actions they should take
-${data.documentText ? '6. Analysis of financial documents they provided' : ''}
-
-If there is insufficient information to provide a complete analysis, include 3-5 follow-up questions that would help you better understand their financial situation and psychology.`;
-
-    // Create a prompt with all available data
-    let prompt = 'Please analyze the following financial information:\n\n';
-
-    if (data.questionnaireAnswers && Object.keys(data.questionnaireAnswers).length > 0) {
-      prompt += '## Questionnaire Answers\n';
-      Object.entries(data.questionnaireAnswers).forEach(([question, answer]) => {
-        prompt += `- ${question}: ${answer}\n`;
-      });
-      prompt += '\n';
-    }
-
-    if (data.followUpAnswers && Object.keys(data.followUpAnswers).length > 0) {
-      prompt += '## Follow-up Answers\n';
-      Object.entries(data.followUpAnswers).forEach(([question, answer]) => {
-        prompt += `- Question: ${question}\n  Answer: ${answer}\n`;
-      });
-      prompt += '\n';
-    }
-
-    if (data.documentText) {
-      prompt += '## Document Content\n';
-      prompt += data.documentText.substring(0, 5000) + '...\n\n';
-    }
-
-    if (data.userInfo) {
-      prompt += '## User Info\n';
-      if (data.userInfo.name) prompt += `- Name: ${data.userInfo.name}\n`;
-      if (data.userInfo.email) prompt += `- Email: ${data.userInfo.email}\n`;
-    }
-
-    // Call the OpenAI API route
-    const response = await fetch('/api/openai', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        prompt,
-        systemPrompt,
-        options: {
-          model: "gpt-4o",
-          temperature: 0.7,
-          maxTokens: 2500
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to get analysis from ChatGPT');
-    }
-
-    const responseData = await response.json();
-    const analysisText = responseData.text;
-
-    // Parse the ChatGPT response into structured data
-    return parseAnalysisResponse(analysisText);
-
-  } catch (error) {
-    console.error('Error in ChatGPT analysis:', error);
-    throw error;
-  }
-}
-
-// Helper function to extract structured data from ChatGPT's response
-function parseAnalysisResponse(text: string): AnalysisResult {
-  try {
-    // Extract risk score
-    const riskScoreMatch = text.match(/risk score[:\s]*([0-9]|10)/i);
-    const riskScore = riskScoreMatch ? parseInt(riskScoreMatch[1]) : 5;
-
-    // Extract summary
+    const text = data.documentText || '';
     let summary = '';
-    const summaryMatch = text.match(/summary:?([\s\S]*?)(?=(insights:|psychological profile:|risk tolerance:|recommended actions:|follow-up questions:))/i);
+    const summaryMatch = text.match(/summary:?([\s\S]*?)(?=(insights:|risk tolerance:|recommended actions:|follow-up questions:))/i);
     if (summaryMatch && summaryMatch[1]) {
       summary = summaryMatch[1].trim();
     }
@@ -178,5 +181,29 @@ function parseAnalysisResponse(text: string): AnalysisResult {
       psychologicalProfile: "Profile unavailable due to processing error",
       recommendedActions: ["Contact support for assistance"]
     };
+  }
+}
+
+export async function generatePortfolioWithChatGPT(data: UserProfileData): Promise<ChatGptResult> {
+  try {
+    // Call the ChatGPT API route
+    const response = await fetch('/api/chatgpt-portfolio', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to generate portfolio with ChatGPT');
+    }
+
+    const responseData = await response.json();
+    return responseData.analysis;
+  } catch (error) {
+    console.error('Error in ChatGPT portfolio generation:', error);
+    throw error;
   }
 }

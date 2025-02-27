@@ -13,6 +13,7 @@ import FollowUpQuestions from '@/components/FollowUpQuestions';
 import type { QuestionnaireAnswers } from '@/types/shared';
 import { analyzeThroughChatGPT } from '@/utils/chatGptAnalyzer';
 import { extractTextFromPDF } from '@/utils/pdfExtractor';
+import { analyzeWithGemini } from '@/utils/geminiAnalyzer';
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error' | 'analyzing';
 type ProfileStage = 'initial' | 'document-upload' | 'questionnaire' | 'analysis' | 'complete';
@@ -95,7 +96,10 @@ export default function FinancialProfilePage() {
         
         try {
           // Extract text from PDFs
-          const extractionPromises = pdfFiles.map(file => extractTextFromPDF(file));
+          const extractionPromises = pdfFiles.map(file => {
+            const fileUrl = URL.createObjectURL(file);
+            return extractTextFromPDF(fileUrl).finally(() => URL.revokeObjectURL(fileUrl));
+          });
           const extractedTexts = await Promise.all(extractionPromises);
           const combinedText = extractedTexts.join('\n\n');
           
@@ -168,7 +172,7 @@ export default function FinancialProfilePage() {
       };
       
       // Start with initial analysis using ChatGPT
-      const result = await analyzeThroughChatGPT(analysisData);
+      const result = await analyzeWithGemini(analysisData);
       
       // If there are follow-up questions and we haven't shown them yet
       if (result.suggestedFollowUps && result.suggestedFollowUps.length > 0 && !showFollowUps) {

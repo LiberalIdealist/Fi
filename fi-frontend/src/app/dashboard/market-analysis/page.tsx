@@ -68,7 +68,7 @@ export default function MarketAnalysisPage() {
 
       {/* Chat interface */}
       <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800/50">
-        <Chatbot marketIndicators={marketIndicators} />
+        <Chatbot />  {/* Remove the marketIndicators prop */}
       </div>
     </div>
   );

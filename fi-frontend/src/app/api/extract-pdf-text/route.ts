@@ -1,69 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/auth.config";
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { prisma } from '../../../lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/auth.config';
+import { extractTextFromPDF } from '@/utils/pdfExtractor';
 
-const execAsync = promisify(exec);
-
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    // Verify user is authenticated
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: 'Not authenticated' }, 
-        { status: 401 }
-      );
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
-    
-    if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
+    const { documentId } = await req.json();
+
+    if (!documentId) {
+      return NextResponse.json({ error: 'Document ID is required' }, { status: 400 });
     }
-    
-    // Create a temporary file
-    const tempDir = os.tmpdir();
-    const tempFilePath = path.join(tempDir, `pdf-${Date.now()}.pdf`);
-    
-    // Convert file to buffer and write to temp file
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    fs.writeFileSync(tempFilePath, buffer);
-    
-    // Use pdftotext (if available) to extract text
-    try {
-      // Check if pdftotext is available
-      await execAsync('which pdftotext');
-      
-      // Extract text using pdftotext
-      const { stdout } = await execAsync(`pdftotext -layout "${tempFilePath}" -`);
-      
-      // Clean up
-      fs.unlinkSync(tempFilePath);
-      
-      return NextResponse.json({ text: stdout });
-    } catch (error) {
-      // pdftotext not available, return error
-      console.error('Error using pdftotext:', error);
-      return NextResponse.json(
-        { error: 'PDF text extraction failed. pdftotext not available on server.' },
-        { status: 500 }
-      );
+
+    const document = await prisma.financialDocument.findUnique({
+      where: { id: documentId },
+      select: {
+        id: true,
+        userEmail: true,
+        fileName: true,
+        fileUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!document) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
-  } catch (error) {
-    console.error('Error extracting PDF text:', error);
-    return NextResponse.json(
-      { error: 'Failed to extract text from PDF' },
-      { status: 500 }
-    );
+
+    if (document.userEmail !== session.user.email) {
+      return NextResponse.json({ error: 'Not authorized to access this document' }, { status: 403 });
+    }
+
+    const text = await extractTextFromPDF(document.fileUrl);
+
+    await prisma.financialDocument.update({
+      where: { id: document.id },
+      data: { contentText: text },
+    });
+
+    return NextResponse.json({ success: true, contentText: text });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error('Error extracting text from PDF:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'Unknown error' }, { status: 500 });
   }
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { AnalysisRequest, MarketAnalysis } from '@/types/analysis';
+import React, { useState, useRef, useEffect } from 'react';
 import { RiSendPlaneFill, RiLoader4Line } from 'react-icons/ri';
+import { formatAIResponse } from '@/utils/formatters';
 
 interface ChatMessage {
   id: string;
@@ -12,22 +12,27 @@ interface ChatMessage {
 }
 
 interface ChatbotProps {
-  marketIndicators: Array<{
-    name: string;
-    value: string;
-    change: string;
-    trend: 'up' | 'down';
-  }>;
+  // Remove marketIndicators if not used
 }
 
-export default function Chatbot({ marketIndicators }: ChatbotProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export default function Chatbot() {
   const [input, setInput] = useState('');
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleAnalysisRequest = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -36,87 +41,58 @@ export default function Chatbot({ marketIndicators }: ChatbotProps) {
       timestamp: new Date()
     };
 
-    const request: AnalysisRequest = {
-      query: input.trim(),
-      company: extractCompanyName(input.trim()),
-      type: 'Market',
-      context: {
-        marketIndicators: marketIndicators.map(indicator => ({
-          name: indicator.name,
-          value: indicator.value,
-          change: indicator.change
-        }))
-      }
-    };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+    setError('');
 
     try {
-      setLoading(true);
-      setMessages(prev => [...prev, userMessage]);
-
-      const response = await fetch('/api/analysis', {
+      const response = await fetch('/api/financial-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(15000) // 15 seconds timeout
+        body: JSON.stringify({ 
+          message: input,
+          conversationId: conversationId
+        })
       });
 
       if (!response.ok) {
-        throw new Error(`Server responded with status: ${response.status}`);
+        throw new Error('Failed to get response');
       }
 
-      const analysisResult: MarketAnalysis = await response.json();
-
+      const data = await response.json();
+      
+      // Set conversation ID if it's a new conversation
+      if (data.conversationId && !conversationId) {
+        setConversationId(data.conversationId);
+      }
+      
+      // Format the AI response before displaying it
+      const formattedResponse = formatAIResponse(data.response || "I couldn't find relevant information.");
+      
       const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: data.messageId || (Date.now() + 1).toString(),
         role: 'assistant',
-        content: analysisResult.summary || analysisResult.content || 'Analysis completed, but no summary was generated.',
+        content: formattedResponse,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-      setInput('');
-      setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Analysis failed';
-      setError(`Market analysis error: ${errorMessage}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error('Analysis request error:', error);
+        setError('Failed to get analysis. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const extractCompanyName = (query: string): string => {
-    const companyKeywords = ['analysis', 'stock', 'company', 'about'];
-    const companyNames = {
-      'reliance.NS': 'Reliance Industries',
-      'tcs.ns': 'Tata Consultancy Services',
-      'infosys.ns': 'Infosys',
-      'hdfc.ns': 'HDFC Bank',
-      'airtel.ns': 'Bharti Airtel',
-      'l&t.ns': 'Larsen & Toubro'
-    };
-
-    const lowerQuery = query.toLowerCase();
-
-    for (const [keyword, fullName] of Object.entries(companyNames)) {
-      if (lowerQuery.includes(keyword)) {
-        return fullName;
-      }
-    }
-
-    for (const keyword of companyKeywords) {
-      if (lowerQuery.includes(keyword)) {
-        return query;
-      }
-    }
-
-    return '';
-  };
-
   return (
-    <div className="w-full max-w-2xl mx-auto bg-gray-800/50 rounded-lg shadow-lg border-gradient p-6">
+    <div className="w-full max-w-2xl mx-auto bg-gray-800/50 rounded-lg shadow-lg p-6">
       <h2 className="text-xl font-semibold mb-4 text-white">Indian Financial Intelligence Assistant</h2>
 
-      <div className="h-64 overflow-y-auto mb-4 p-4 bg-gray-900/30 rounded-lg">
+      <div className="chat-container">
         {messages.length === 0 ? (
           <div className="text-gray-400 text-center py-10">
             <p>Ask any question about Indian markets or specific companies.</p>
@@ -127,25 +103,24 @@ export default function Chatbot({ marketIndicators }: ChatbotProps) {
             {messages.map((msg) => (
               <div 
                 key={msg.id}
-                className={`p-3 rounded-lg ${
-                  msg.role === 'user' 
-                    ? 'bg-blue-600/20 ml-auto max-w-[80%]' 
-                    : 'bg-gray-700/50 max-w-[90%]'
-                }`}
+                className={msg.role === 'user' ? 'message-bubble-user' : 'message-bubble-ai'}
               >
-                <p className="text-sm whitespace-pre-line">{msg.content}</p>
+                <p className="text-sm whitespace-pre-line break-words">
+                  {msg.content}
+                </p>
                 <span className="text-xs text-gray-400 block mt-1">
                   {msg.timestamp.toLocaleTimeString()}
                 </span>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
 
         {loading && (
           <div className="flex items-center justify-center p-4">
             <RiLoader4Line className="animate-spin text-blue-400 mr-2" size={20} />
-            <span className="text-blue-400">Analyzing Indian markets...</span>
+            <span className="text-blue-400">Analyzing your question...</span>
           </div>
         )}
       </div>
@@ -156,7 +131,7 @@ export default function Chatbot({ marketIndicators }: ChatbotProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleAnalysisRequest()}
-            placeholder="Ask about Indian markets or companies..."
+            placeholder="Ask about Indian markets or personal finance..."
             className="flex-1 px-4 py-3 bg-gray-700 rounded-lg text-white"
             disabled={loading}
           />

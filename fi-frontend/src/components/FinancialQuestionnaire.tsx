@@ -30,7 +30,7 @@ const FinancialQuestionnaire: React.FC<FinancialQuestionnaireProps> = ({
   initialAnswers = {} 
 }) => {
   const [answers, setAnswers] = useState<QuestionnaireAnswers>(initialAnswers);
-  const [message, setMessage] = useState<string>("");
+  const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeSection, setActiveSection] = useState(0);
 

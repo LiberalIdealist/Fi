@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/auth.config";
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth.config';
 
 export async function POST(_req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { answers } = await _req.json();
@@ -17,7 +17,7 @@ export async function POST(_req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const existingProfile = await prisma.financialProfile.findUnique({
@@ -35,22 +35,20 @@ export async function POST(_req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ message: "Profile saved successfully" });
+    return NextResponse.json({ message: 'Profile saved successfully' });
   } catch (error) {
-    console.error("Error saving profile:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error('Error saving profile:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function GET(_req: NextRequest) {
   try {
-    // Get user from session (more secure than using email from query)
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
-    // Get the user profile from database
+
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: {
@@ -60,10 +58,9 @@ export async function GET(_req: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Return formatted profile data
     return NextResponse.json({
       id: user.id,
       name: user.name,
@@ -73,12 +70,8 @@ export async function GET(_req: NextRequest) {
       riskScore: user.financialProfile?.riskScore || null,
       profile: user.profile,
     });
-    
   } catch (error) {
-    console.error("Profile fetch error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch profile" }, 
-      { status: 500 }
-    );
+    console.error('Profile fetch error:', error);
+    return NextResponse.json({ error: 'Failed to fetch profile' }, { status: 500 });
   }
 }

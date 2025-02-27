@@ -1,27 +1,230 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "../../../lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/auth.config";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { updateFinancialProfileData } from "@/utils/financialDataAggregator";
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { documentId } = await req.json();
+    if (!documentId) {
+      return NextResponse.json({ error: "Document ID is required" }, { status: 400 });
+    }
+
+    // Get document from database
+    const document = await prisma.financialDocument.findUnique({
+      where: { id: documentId },
+      select: {
+        id: true,
+        userEmail: true,
+        fileName: true,
+        fileUrl: true,
+        contentText: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!document) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    if (document.userEmail !== session.user.email) {
+      return NextResponse.json({ error: "Not authorized to access this document" }, { status: 403 });
+    }
+
+    // Get the user's financial profile
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: { financialProfile: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Get document content
+    let documentContent = "";
+    if (document.contentText) {
+      documentContent = document.contentText;
+    } else {
+      // If content is not stored, fetch it from Azure or extract it again
+      return NextResponse.json({ error: "Document content not available" }, { status: 400 });
+    }
+
+    // Analyze using Gemini API
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    const prompt = `
+      You are a financial analyst. Please analyze the following financial document content and provide a comprehensive analysis with specific metrics.
+      
+      Analyze the document to determine:
+      1. Document type (e.g., bank statement, credit card statement, salary slip, loan statement, investment account statement)
+      2. Time period covered by the document
+      3. Key financial metrics based on document type:
+      
+      If it's a bank statement:
+        - Opening balance
+        - Closing balance
+        - Total deposits
+        - Total withdrawals
+        - Recurring income sources with amounts
+        - Recurring expenses with amounts
+        - Top 5 expense categories with amounts
+        - Any unusual transactions
+      
+      If it's a salary slip:
+        - Gross salary
+        - Net salary (take-home pay)
+        - Tax deductions
+        - Other deductions
+        - Bonus or variable components
+        - Employment details
+      
+      If it's a credit card statement:
+        - Total outstanding amount
+        - Minimum due
+        - Credit limit
+      
+      If it's an investment account statement:
+        - Total investment value
+        - Asset allocation
+        - Performance metrics
+      
+      4. Identify long-term patterns or trends if visible in this document
+      5. Highlight any issues, risks, or opportunities highlighted in the document
+      
+      Format your response as structured JSON with the following format:
+      {
+        "documentType": "Bank Statement",
+        "period": "January 2023",
+        "metrics": {
+          "openingBalance": 1000.00,
+          "closingBalance": 1500.00,
+          "totalDeposits": 2000.00,
+          "totalWithdrawals": 500.00,
+          "recurringIncome": [
+            { "source": "Salary", "amount": 2000.00 }
+          ],
+          "recurringExpenses": [
+            { "category": "Rent", "amount": 1000.00 }
+          ],
+          "topExpenses": [
+            { "category": "Groceries", "amount": 200.00 },
+            { "category": "Utilities", "amount": 100.00 }
+          ],
+          "unusualTransactions": [
+            { "description": "Large ATM withdrawal", "amount": 300.00 }
+          ]
+        },
+        "insights": {
+          "patterns": ["Pattern 1", "Pattern 2"],
+          "risks": ["Risk 1", "Risk 2"],
+          "opportunities": ["Opportunity 1", "Opportunity 2"]
+        }
+      }
+      
+      Provide only the JSON response without any additional text, explanations, or markdown formatting.
+    `;
+
+    const result = await model.generateText(prompt);
+    const analysisData = JSON.parse(result.response);
+
+    // Save analysis to database
+    try {
+      let financialProfileId = user.financialProfile?.id;
+      if (!financialProfileId) {
+        const newProfile = await prisma.financialProfile.create({
+          data: {
+            userId: user.id,
+          },
+        });
+        financialProfileId = newProfile.id;
+      }
+
+      await prisma.documentAnalysis.create({
+        data: {
+          documentId: document.id,
+          analysisContent: result.response,
+          structuredData: analysisData,
+          documentType: analysisData.documentType,
+          period: analysisData.period,
+          userProfileId: financialProfileId,
+          createdAt: new Date(),
+        },
+      });
+
+      // Update the document to mark it as analyzed
+      await prisma.financialDocument.update({
+        where: { id: document.id },
+        data: { 
+          analyzedAt: new Date(),
+        },
+      });
+
+      // Aggregate financial data from all document analyses
+      await updateFinancialProfileData(financialProfileId);
+
+      return NextResponse.json({ 
+        analysis: analysisData,
+        documentName: document.fileName,
+        documentId: document.id,
+      });
+    } catch (error) {
+      console.error("Error analyzing document with AI:", error);
+      return NextResponse.json({ error: "Failed to analyze document" }, { status: 500 });
+    }
+  } catch (error) {
+    console.error("Error in analyze-document route:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+// User authentication models
+model User {
+  id                  String               @id @default(cuid())
+  name                String?
+  email               String               @unique
+  emailVerified       DateTime?
+  image               String?
+  accounts            Account[]
+  sessions            Session[]
+  financialProfile    FinancialProfile?
+  documents           FinancialDocument[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+}
+
+model Account {
+  id                  String  @id @default(cuid())
+  userId              String
+  type                String
+  provider            String
+  providerAccountId   String
+  refresh_token       String? @db.Text
+  access_token        String? @db.Text
+  expires_at          Int?
+  token_type          String?
+  scope               String?
+  id_token            String? @db.Text
+  session_state       String?
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -34,59 +237,115 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id                  String            @id @default(cuid())
-  name                String?
-  email               String?           @unique
-  emailVerified       DateTime?
-  password            String?
-  image               String?
-  accounts            Account[]
-  sessions            Session[]
-  profile             Profile?
-  financialProfile    FinancialProfile? @relation("UserToFinancialProfile") // Remove fields & references here
-  financialDocuments  FinancialDocument[]
-}
-
-model FinancialProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique // Ensure only one FinancialProfile per user
-  user      User     @relation("UserToFinancialProfile", fields: [userId], references: [id], onDelete: Cascade)
-  responses Json
-  riskScore Int?     // Calculated risk score based on answers
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-model Profile {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique // Add this line
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  completedQuestionnaire Boolean  @default(false)
-  riskScore              Int?
-  investmentStyle        String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-}
-
-model FinancialDocument {
-  id        String   @id @default(cuid())
-  userEmail String
-  fileName  String
-  fileUrl   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userEmail], references: [email])
-
-  @@index([userEmail])
-}
-
 model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Financial application models
+model FinancialProfile {
+  id                      String             @id @default(cuid())
+  userId                  String             @unique
+  user                    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  responses               Json?              // Raw questionnaire responses
+  riskScore               Int?               // Risk score from 1-10
+  financialSummary        String?            @db.Text // Summary by Gemini
+  geminiInsights          Json?              // Structured insights from Gemini
+  documentAnalyses        DocumentAnalysis[]
+  financialData           FinancialData?     // Detailed financial data extracted from documents
+  portfolioRecommendation PortfolioRecommendation?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+}
+
+model FinancialData {
+  id                  String           @id @default(cuid())
+  profileId           String           @unique
+  financialProfile    FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  // Income metrics
+  monthlyIncome       Float?
+  annualIncome        Float?
+  incomeStreams       Json?             // Array of income sources
+  incomeStability     String?           // Stability assessment (High, Medium, Low)
+  incomeGrowthRate    Float?
+  
+  // Spending metrics
+  monthlySpending     Float?
+  annualSpending      Float?
+  topExpenses         Json?             // Array of top expense categories
+  discretionarySpending Float?          // Non-essential spending
+  spendingTrends      Json?             // Month-over-month spending trends
+  
+  // Assets and savings
+  savings             Float?            // Total savings amount
+  savingsRate         Float?            // Savings as % of income
+  investments         Json?             // Current investment portfolio
+  assets              Json?             // Physical assets and their value
+  emergencyFundMonths Float?            // Months of expenses covered
+  
+  // Liabilities
+  totalDebt           Float?
+  debtToIncomeRatio   Float?
+  loans               Json?             // Structured loan information
+  creditCards         Json?             // Credit card balances and limits
+  emi                 Float?            // Monthly EMI payments
+  
+  // Financial health indicators
+  creditScore         Int?
+  netWorth            Float?
+  financialHealthScore Int?             // Calculated financial health score (0-100)
+  dataCompleteness    Float?            // How complete is the financial data (0-100%)
+  
+  // Metadata
+  lastUpdated         DateTime          @default(now())
+  dataSources         Json?             // Which documents contributed to this data
+}
+
+model DocumentAnalysis {
+  id               String            @id @default(uuid())
+  documentId       String
+  document         FinancialDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  analysisContent  String            @db.Text         // Raw analysis text
+  structuredData   Json?                              // Structured financial data extracted
+  documentType     String?                            // Bank statement, salary slip, etc.
+  period           Json?                              // Time period covered by the document
+  insights         Json?                              // Key insights from the document
+  userProfileId    String?
+  financialProfile FinancialProfile? @relation(fields: [userProfileId], references: [id])
+  createdAt        DateTime          @default(now())
+}
+
+model FinancialDocument {
+  id            String           @id @default(uuid())
+  userEmail     String
+  user          User             @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+  fileName      String
+  fileUrl       String
+  fileSize      Int              @default(0)
+  contentText   String?          @db.Text
+  uploadedAt    DateTime         @default(now())
+  analyzedAt    DateTime?
+  updatedAt     DateTime         @updatedAt
+  analyses      DocumentAnalysis[]
+}
+
+model PortfolioRecommendation {
+  id                 String           @id @default(cuid())
+  profileId          String           @unique
+  financialProfile   FinancialProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fixedDeposits      Json?            // FD recommendations
+  stocks             Json?            // Stock recommendations
+  mutualFunds        Json?            // Mutual fund recommendations
+  insurance          Json?            // Insurance recommendations
+  swotAnalysis       Json?            // SWOT analysis
+  monthlyInvestment  Float?           // Recommended monthly investment
+  emergencyFund      Float?           // Recommended emergency fund
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  marketConditions   String?          @db.Text // Current market assessment
+  generationPrompt   String?          @db.Text // Store prompt for reference
 }

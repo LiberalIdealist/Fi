@@ -96,6 +96,54 @@
     background-size: 200% 200%;
     animation: gradient 15s ease infinite;
   }
+
+  /* AI Response Component Styling */
+  .ai-response {
+    @apply font-sans leading-relaxed text-gray-100
+           break-words overflow-hidden rounded-lg;
+    letter-spacing: 0.3px;
+  }
+
+  .ai-response p {
+    @apply mb-3;
+  }
+
+  .ai-response ul {
+    @apply pl-6 mb-3;
+  }
+
+  .ai-response li {
+    @apply mb-1;
+  }
+  
+  /* Message bubbles for chat interface */
+  .message-bubble {
+    @apply p-3 rounded-lg max-w-[90%] break-words;
+  }
+  
+  .message-bubble-user {
+    @apply message-bubble bg-blue-600/20 ml-auto;
+  }
+  
+  .message-bubble-ai {
+    @apply message-bubble bg-gray-700/50;
+  }
+  
+  /* Container for AI responses */
+  .ai-response-container {
+    @apply bg-gray-800/40 p-4 rounded-lg 
+           overflow-auto max-h-[60vh] 
+           scrollbar-thin scrollbar-thumb-gray-700 
+           scrollbar-track-transparent;
+  }
+  
+  /* Chat container */
+  .chat-container {
+    @apply h-64 overflow-y-auto mb-4 p-4 
+           bg-gray-900/30 rounded-lg 
+           scrollbar-thin scrollbar-thumb-gray-700 
+           scrollbar-track-transparent;
+  }
 }
 
 @layer utilities {
@@ -135,6 +183,24 @@
 
   .animation-delay-4000 {
     animation-delay: 4s;
+  }
+
+  .break-words {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thumb-gray-700::-webkit-scrollbar-thumb {
+    background-color: #374151;
+    border-radius: 2px;
+  }
+
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
   }
 }
 

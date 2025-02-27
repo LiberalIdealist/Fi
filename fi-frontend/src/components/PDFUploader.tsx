@@ -1,123 +1,145 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { extractTextFromPDF } from "@/utils/pdfExtractor"; // Import the function
+import { extractTextFromPDF } from "@/utils/pdfExtractor";
+import { RiFileUploadLine, RiFileTextLine, RiLoader4Line } from "react-icons/ri";
 
-export default function PDFUploader() {
+type PDFUploaderProps = {
+  onDocumentProcessed: (documentId: string) => void;
+};
+
+export default function PDFUploader({ onDocumentProcessed }: PDFUploaderProps) {
   const { data: session } = useSession();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<string[]>([]);
-  const [documentText, setDocumentText] = useState<string | null>(null);
-  const [profileStage, setProfileStage] = useState<string | null>('initial');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const generateAIAnalysis = async () => {
-    // Implement your AI analysis logic here
-    console.log("Generating AI analysis...");
-    // For now, just simulate a delay
-    return new Promise((resolve) => setTimeout(resolve, 2000));
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
-    setUploadStatus('uploading');
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    setUploadStatus('File selected: ' + file.name);
     setError(null);
-    
-    try {
-      const files = Array.from(e.target.files);
-      
-      // Add uploaded document names to state
-      const newDocs = files.map(f => f.name);
-      setDocuments(prev => [...prev, ...newDocs]);
-      
-      setUploadStatus('success');
-      
-      // For PDFs, try to extract content
-      const pdfFiles = files.filter(file => file.type === 'application/pdf');
-      
-      if (pdfFiles.length > 0) {
-        setUploadStatus('analyzing');
-        
-        try {
-          // Extract text from first PDF only for simplicity
-          const pdfText = await extractTextFromPDF(pdfFiles[0]);
-          
-          // Store the extracted text for analysis
-          setDocumentText(pdfText || `Document: ${pdfFiles[0].name}`);
-          
-          // If we have text, proceed to analysis
-          setProfileStage('analysis');
-          await generateAIAnalysis();
-        } catch (error) {
-          console.error('Error analyzing PDF:', error);
-          // If PDF analysis fails, fall back to questionnaire
-          setProfileStage('questionnaire');
-        }
-      } else {
-        // No PDFs to analyze, move to questionnaire
-        setProfileStage('questionnaire');
-      }
-      
-      setUploadStatus('idle');
-    } catch (err) {
-      console.error('Error uploading documents:', err);
-      setUploadStatus('error');
-      setError('Document upload failed. Please try again.');
-    }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) {
-      alert("Please select a file to upload.");
+    if (!selectedFile || !session?.user?.email) {
+      setError('Please select a file and ensure you are logged in');
       return;
     }
-    
+
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("email", session?.user?.email || "unknown");
+    setUploadStatus('Uploading...');
+    setError(null);
 
     try {
-      const response = await fetch("/api/upload-pdf", {
-        method: "POST",
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('fileName', selectedFile.name);
+      formData.append('userEmail', session.user.email);
+
+      // Send to API endpoint
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
         body: formData,
       });
 
-      const result = await response.json();
-      if (response.ok) {
-        setUploadStatus("Upload successful!");
-      } else {
-        setUploadStatus(`Upload failed: ${result.error}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload document');
       }
-    } catch (error) {
-      setUploadStatus("Upload failed. Try again.");
+
+      const data = await response.json();
+      setUploadStatus('Upload successful! Processing document...');
+      
+      // Start processing phase
+      setIsProcessing(true);
+      
+      // Call the onDocumentProcessed callback with the document ID
+      onDocumentProcessed(data.documentId);
+      
+      setUploadStatus('Document processed successfully!');
+      setSelectedFile(null);
+      
+      // Reset the file input
+      const fileInput = document.getElementById('pdf-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setError(error.message || 'Failed to upload document');
     } finally {
       setUploading(false);
-      setSelectedFile(null);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <div className="bg-gray-900 p-6 rounded-lg shadow-lg">
-      <h2 className="text-xl font-bold text-white mb-4">Upload Financial Documents</h2>
-      <input
-        type="file"
-        accept="application/pdf"
-        className="text-white"
-        onChange={handleFileChange}
-      />
-      <button
-        className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-700 mt-4"
-        onClick={handleUpload}
-        disabled={uploading}
-      >
-        {uploading ? "Uploading..." : "Upload PDF"}
-      </button>
-      {uploadStatus && <p className="text-white mt-2">{uploadStatus}</p>}
+    <div className="glass-panel p-6 rounded-lg">
+      <h2 className="text-xl font-semibold text-white mb-4">Upload Financial Document</h2>
+      
+      <div className="flex flex-col gap-4">
+        <label className="block">
+          <span className="sr-only">Choose PDF file</span>
+          <input
+            id="pdf-upload"
+            type="file"
+            accept="application/pdf"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-300
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-500 file:text-white
+                    hover:file:bg-blue-600
+                    cursor-pointer disabled:opacity-50"
+            disabled={uploading || isProcessing}
+          />
+        </label>
+        
+        <button
+          onClick={handleUpload}
+          disabled={!selectedFile || uploading || isProcessing}
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 
+                   text-white py-2 px-4 rounded-md disabled:opacity-50 transition-colors"
+        >
+          {uploading ? (
+            <>
+              <RiLoader4Line className="animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <RiFileUploadLine />
+              Upload Document
+            </>
+          )}
+        </button>
+        
+        {uploadStatus && (
+          <div className="text-sm text-gray-300 mt-2">
+            {isProcessing ? (
+              <div className="flex items-center">
+                <RiLoader4Line className="animate-spin mr-2" />
+                {uploadStatus}
+              </div>
+            ) : (
+              uploadStatus
+            )}
+          </div>
+        )}
+        
+        {error && (
+          <div className="text-sm text-red-400 bg-red-900/30 p-3 rounded-md border border-red-800/50 mt-2">
+            {error}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
