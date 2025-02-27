@@ -12,7 +12,6 @@ interface ChatMessage {
 }
 
 interface ChatbotProps {
-  // Add marketIndicators prop to receive data from parent
   marketIndicators: Array<{
     name: string;
     value: string;
@@ -21,16 +20,15 @@ interface ChatbotProps {
   }>;
 }
 
-const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
+export default function Chatbot({ marketIndicators }: ChatbotProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleAnalysisRequest = async () => {
     if (!input.trim()) return;
-    
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -38,9 +36,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
       timestamp: new Date()
     };
 
-    // Fix missing query property
     const request: AnalysisRequest = {
-      query: input.trim(), // Add required query field
+      query: input.trim(),
       company: extractCompanyName(input.trim()),
       type: 'Market',
       context: {
@@ -55,28 +52,23 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
     try {
       setLoading(true);
       setMessages(prev => [...prev, userMessage]);
-      
-      // Call the API
+
       const response = await fetch('/api/analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
-        // Add timeout handling
         signal: AbortSignal.timeout(15000) // 15 seconds timeout
       });
-      
+
       if (!response.ok) {
         throw new Error(`Server responded with status: ${response.status}`);
       }
-      
-      const analysisResult = await response.json();
-      setAnalysis(analysisResult);
 
-      // Fix possibly undefined content
+      const analysisResult: MarketAnalysis = await response.json();
+
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        // Ensure content is always a string
         content: analysisResult.summary || analysisResult.content || 'Analysis completed, but no summary was generated.',
         timestamp: new Date()
       };
@@ -92,12 +84,10 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
     }
   };
 
-  // Helper function to extract company name from query
   const extractCompanyName = (query: string): string => {
-    // Simple detection of company names from input
     const companyKeywords = ['analysis', 'stock', 'company', 'about'];
     const companyNames = {
-      'Reliance.NS': 'Reliance Industries',
+      'reliance.NS': 'Reliance Industries',
       'tcs.ns': 'Tata Consultancy Services',
       'infosys.ns': 'Infosys',
       'hdfc.ns': 'HDFC Bank',
@@ -106,30 +96,26 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
     };
 
     const lowerQuery = query.toLowerCase();
-    
-    // Check if query contains a company name
+
     for (const [keyword, fullName] of Object.entries(companyNames)) {
       if (lowerQuery.includes(keyword)) {
         return fullName;
       }
     }
-    
-    // Check if query matches pattern "analysis of X" or "about X stock"
+
     for (const keyword of companyKeywords) {
       if (lowerQuery.includes(keyword)) {
-        // Just return the query as-is - the backend will try to extract company
         return query;
       }
     }
-    
-    // If no company detected, it's a general market query
+
     return '';
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-gray-800/50 rounded-lg shadow-lg">
+    <div className="w-full max-w-2xl mx-auto bg-gray-800/50 rounded-lg shadow-lg border-gradient p-6">
       <h2 className="text-xl font-semibold mb-4 text-white">Indian Financial Intelligence Assistant</h2>
-      
+
       <div className="h-64 overflow-y-auto mb-4 p-4 bg-gray-900/30 rounded-lg">
         {messages.length === 0 ? (
           <div className="text-gray-400 text-center py-10">
@@ -155,7 +141,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
             ))}
           </div>
         )}
-        
+
         {loading && (
           <div className="flex items-center justify-center p-4">
             <RiLoader4Line className="animate-spin text-blue-400 mr-2" size={20} />
@@ -188,61 +174,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ marketIndicators }) => {
             {error}
           </div>
         )}
-
-        {/* Show detailed analysis only if we have it and user isn't interacting */}
-        {analysis && messages.length > 0 && !loading && (
-          <div className="mt-6 p-4 bg-gray-700/50 rounded-lg space-y-4">
-            <h3 className="font-semibold text-lg text-white">
-              {analysis.company ? `${analysis.company} Analysis` : 'Indian Market Analysis'}
-            </h3>
-            
-            {/* Add null checks for all potentially undefined properties */}
-            {analysis.keyHighlights && analysis.keyHighlights.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="font-semibold text-md text-blue-400">Key Highlights</h4>
-                <ul className="list-disc list-inside text-gray-300">
-                  {analysis.keyHighlights.map((highlight, index) => (
-                    <li key={index}>{highlight}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {analysis.analysis && (
-              <div className="space-y-2">
-                <h4 className="font-semibold text-md text-blue-400">Detailed Analysis</h4>
-                <div className="text-gray-300 space-y-2">
-                  {analysis.analysis.technical && (
-                    <p><span className="font-medium">Technical:</span> {analysis.analysis.technical}</p>
-                  )}
-                  {analysis.analysis.fundamental && (
-                    <p><span className="font-medium">Fundamental:</span> {analysis.analysis.fundamental}</p>
-                  )}
-                  {analysis.analysis.risk && (
-                    <p><span className="font-medium">Risk:</span> {analysis.analysis.risk}</p>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {analysis.metrics && (
-              <div className="flex gap-4 text-sm text-gray-400">
-                {typeof analysis.metrics.score !== 'undefined' && (
-                  <span>Score: {Math.round(analysis.metrics.score * 100)}%</span>
-                )}
-                {typeof analysis.metrics.confidence !== 'undefined' && (
-                  <span>Confidence: {Math.round(analysis.metrics.confidence * 100)}%</span>
-                )}
-                {typeof analysis.metrics.risk !== 'undefined' && (
-                  <span>Risk: {Math.round(analysis.metrics.risk * 100)}%</span>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
-};
-
-export default Chatbot;
+}

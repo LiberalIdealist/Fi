@@ -77,7 +77,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                           {/* Replace gradient div with actual logo */}
                           <div className="h-10 w-10 relative">
                             <Image
-                              src="/workspaces/Fi/fi-frontend/public/images/logo.png" 
+                              src="/images/fi-logo.png" 
                               alt="Fi Finance Logo"
                               fill
                               className="object-contain"
@@ -175,7 +175,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                             {/* Logo in mobile menu */}
                             <div className="h-8 w-8 relative">
                               <Image
-                                src="/logo.png"
+                                src="/images/fi-logo.png"
                                 alt="Fi Logo"
                                 fill
                                 className="object-contain"
@@ -271,7 +271,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                       {/* Logo in header for mobile (when menu is closed) */}
                       <div className="h-8 w-8 relative lg:hidden">
                         <Image
-                          src="/logo.png"
+                          src="/images/fi-logo.png"
                           alt="Fi Logo"
                           fill
                           className="object-contain"

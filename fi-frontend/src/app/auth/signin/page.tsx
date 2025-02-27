@@ -45,10 +45,18 @@ export default function SignInPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="flex flex-col items-center justify-center w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="text-4xl font-bold text-white mb-2">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Fi</span>
-          </div>
-          <p className="text-sm text-gray-300">
+          <Image
+            src="/images/fi-logo.png"
+            alt="Fi Logo"
+            width={180}
+            height={60}
+            priority
+            className="mx-auto object-contain"
+          />
+          <h1 className="mt-3 text-3xl font-extrabold text-white">
+            Sign in to <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Fi</span>
+          </h1>
+          <p className="mt-2 text-sm text-gray-300">
             Your AI-powered personal finance assistant
           </p>
         </div>

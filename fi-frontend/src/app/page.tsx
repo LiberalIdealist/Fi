@@ -13,7 +13,7 @@ export default function HomePage() {
           {/* Logo on landing page */}
           <div className="h-10 w-10 relative">
             <Image
-              src="/logo.png"
+              src="/images/fi-logo.png"
               alt="Fi Finance Logo"
               fill
               className="object-contain"

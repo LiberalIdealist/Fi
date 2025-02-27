@@ -3,7 +3,6 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import React from 'react';
-import Logo from './Logo';
 import styled from 'styled-components';
 import Image from "next/image";
 
@@ -61,6 +60,7 @@ const Navbar: React.FC = () => {
               priority
               className="object-contain"
             />
+            <span className="ml-2 text-gradient text-2xl font-bold">Fi</span>
           </Link>
           
           <NavLinks>

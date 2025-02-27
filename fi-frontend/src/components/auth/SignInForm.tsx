@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface SignInFormProps {
   callbackUrl: string;
@@ -40,7 +41,11 @@ export default function SignInForm({ callbackUrl }: SignInFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 glass-panel">
+      <div className="flex justify-center mb-6">
+       
+      </div>
+
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-gray-200">
           Email address
@@ -53,7 +58,7 @@ export default function SignInForm({ callbackUrl }: SignInFormProps) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="appearance-none block w-full px-3 py-2 border border-gray-700 bg-gray-800/60 text-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-purple-500/50 transition-all duration-200"
+            className="appearance-none block w-full px-3 py-2 border border-gray-700 bg-gray-800/60 text-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             placeholder="your@email.com"
           />
         </div>
@@ -71,7 +76,7 @@ export default function SignInForm({ callbackUrl }: SignInFormProps) {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="appearance-none block w-full px-3 py-2 border border-gray-700 bg-gray-800/60 text-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-purple-500/50 transition-all duration-200"
+            className="appearance-none block w-full px-3 py-2 border border-gray-700 bg-gray-800/60 text-white rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
             placeholder="••••••••"
           />
         </div>
