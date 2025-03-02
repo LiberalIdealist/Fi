@@ -5,13 +5,17 @@ import { motion } from 'framer-motion';
 import { RiArrowRightLine, RiQuestionAnswerLine } from 'react-icons/ri';
 
 interface FollowUpQuestionsProps {
-  questions: string[];
-  onAnswer: (question: string, answer: string) => void;
-  onComplete: () => void;
+  questions?: string[];
+  initialAnswers?: Record<string, any>;
+  documentAnalysis?: any[];
+  onAnswer?: (question: string, answer: string) => void;
+  onComplete: (answers: Record<string, any>) => Promise<void> | void;
 }
 
 export default function FollowUpQuestions({ 
-  questions, 
+  questions = [], 
+  initialAnswers = {},
+  documentAnalysis = [],
   onAnswer, 
   onComplete 
 }: FollowUpQuestionsProps) {
@@ -19,12 +23,13 @@ export default function FollowUpQuestions({
   const [answer, setAnswer] = useState('');
   const [answeredQuestions, setAnsweredQuestions] = useState<{question: string, answer: string}[]>([]);
   
-  const handleSubmit = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!answer.trim()) return;
     
     // Save this answer
     const currentQuestion = questions[currentQuestionIndex];
-    onAnswer(currentQuestion, answer);
+    onAnswer && onAnswer(currentQuestion, answer);
     
     // Track answered questions
     setAnsweredQuestions([
@@ -37,7 +42,10 @@ export default function FollowUpQuestions({
       setCurrentQuestionIndex(prev => prev + 1);
       setAnswer('');
     } else {
-      onComplete();
+      onComplete(answeredQuestions.reduce((acc, { question, answer }) => {
+        acc[question] = answer;
+        return acc;
+      }, {} as Record<string, any>));
     }
   };
   

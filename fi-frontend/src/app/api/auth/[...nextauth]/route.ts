@@ -5,6 +5,7 @@ const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 
 // Example of handling API response
+/*
 async function fetchData() {
   try {
     const response = await fetch('/api/endpoint'); // Replace with your API endpoint
@@ -19,3 +20,4 @@ async function fetchData() {
 }
 
 fetchData();
+*/

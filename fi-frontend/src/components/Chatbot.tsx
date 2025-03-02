@@ -25,6 +25,7 @@ export default function Chatbot({ marketIndicators }: ChatbotProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [marketSummary, setMarketSummary] = useState<string | null>(null);
 
   const handleAnalysisRequest = async () => {
     if (!input.trim()) return;
@@ -76,9 +77,15 @@ export default function Chatbot({ marketIndicators }: ChatbotProps) {
       setMessages(prev => [...prev, assistantMessage]);
       setInput('');
       setError(null);
+      if (analysisResult && analysisResult.summary) {
+        setMarketSummary(analysisResult.summary);
+      } else {
+        setMarketSummary("Analysis completed, but no summary was generated.");
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Analysis failed';
       setError(`Market analysis error: ${errorMessage}`);
+      setMarketSummary("Error generating market analysis.");
     } finally {
       setLoading(false);
     }
@@ -175,6 +182,15 @@ export default function Chatbot({ marketIndicators }: ChatbotProps) {
           </div>
         )}
       </div>
+
+      {marketSummary && (
+        <div className="mt-4 bg-gray-800/70 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold text-white mb-2">Market Analysis</h3>
+          <div className="text-gray-200 whitespace-pre-wrap">
+            {marketSummary}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

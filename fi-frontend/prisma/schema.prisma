@@ -1,18 +1,23 @@
+// Database configuration
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// Prisma client generator
 generator client {
   provider = "prisma-client-js"
 }
 
+// Authentication Models
 model Account {
   id                String  @id @default(cuid())
   userId            String
-  type              String
-  provider          String
-  providerAccountId String
+  type              String  // OAuth type
+  provider          String  // Auth provider (Google, GitHub, etc.)
+  providerAccountId String  // User ID on the provider's side
+  
+  // OAuth tokens and related data
   refresh_token     String? @db.Text
   access_token      String? @db.Text
   expires_at        Int?
@@ -21,6 +26,7 @@ model Account {
   id_token          String? @db.Text
   session_state     String?
 
+  // Relationships
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
@@ -34,59 +40,135 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model User {
-  id                  String            @id @default(cuid())
-  name                String?
-  email               String?           @unique
-  emailVerified       DateTime?
-  password            String?
-  image               String?
-  accounts            Account[]
-  sessions            Session[]
-  profile             Profile?
-  financialProfile    FinancialProfile? @relation("UserToFinancialProfile") // Remove fields & references here
-  financialDocuments  FinancialDocument[]
-}
-
-model FinancialProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique // Ensure only one FinancialProfile per user
-  user      User     @relation("UserToFinancialProfile", fields: [userId], references: [id], onDelete: Cascade)
-  responses Json
-  riskScore Int?     // Calculated risk score based on answers
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-}
-
-model Profile {
-  id                     String   @id @default(cuid())
-  userId                 String   @unique // Add this line
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  completedQuestionnaire Boolean  @default(false)
-  riskScore              Int?
-  investmentStyle        String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-}
-
-model FinancialDocument {
-  id        String   @id @default(cuid())
-  userEmail String
-  fileName  String
-  fileUrl   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userEmail], references: [email])
-
-  @@index([userEmail])
-}
-
 model VerificationToken {
-  identifier String
+  identifier String   // Usually the user's email
   token      String   @unique
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Core Application Models
+model User {
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String?             @unique
+  emailVerified      DateTime?
+  password           String?             // Hashed password for email/pw auth
+  image              String?             // Profile image URL
+  
+  // Relationships
+  accounts           Account[]
+  sessions           Session[]
+  financialProfile   FinancialProfile?   
+  financialDocuments FinancialDocument[]
+  
+  // Metadata
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+// Financial data models
+model FinancialProfile {
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Risk assessment
+  riskScore              Int       @default(5) // 1-10 scale
+  investmentStyle        String?   // Conservative, Moderate, Aggressive, etc.
+  
+  // Financial planning data
+  financialGoals         String[]  // Array of goals (e.g. "retirement", "home")
+  insights               String[]  // Key insights from analysis
+  
+  // User journey tracking
+  completedQuestionnaire Boolean   @default(false)
+  documentsAnalyzed      Boolean   @default(false)
+  
+  // Analysis data storage
+  questionnaireResponses Json?     // Raw responses from questionnaire
+  followUpResponses      Json?     // Responses from follow-up questions
+  documentAnalysis       Json?     // Results from document analysis
+  analysisData           Json?     // Consolidated financial analysis
+  psychologicalProfile   Json?     // Behavioral finance insights
+  recommendations        Json?     // AI-generated recommendations
+  
+  // Versioning and timestamps
+  analysisVersion        Int       @default(1)
+  lastAnalyzedAt         DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model FinancialDocument {
+  id                  String                   @id @default(cuid())
+  userId              String
+  user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // File properties
+  fileName            String                   // Original name of uploaded file
+  fileType            String                   // MIME type (e.g. application/pdf)
+  fileSize            Int                      // Size in bytes
+  fileUrl             String                   // URL to download the file
+  bucketName          String        @default("default-bucket") // Cloud storage bucket name                   
+  
+  // Document metadata
+  documentType        String                   // 'bank', 'credit', 'demat', 'tax', 'other'
+  isPasswordProtected Boolean                  @default(false)
+  
+  // Processing status
+  processingStatus    String                   @default("pending") // 'pending', 'processing', 'completed', 'failed'
+  processingErrors    String?                  // Error messages if processing failed
+  
+  // Timestamps
+  uploadedAt          DateTime                 @default(now())
+  processedAt         DateTime?                // When processing completed
+  
+  // Relationships
+  analysis            FinancialDocumentAnalysis?
+  tempData            TempDocumentData[]
+}
+
+model FinancialDocumentAnalysis {
+  id              String            @id @default(cuid())
+  documentId      String            @unique
+  document        FinancialDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Analysis content
+  rawText         String?           @db.Text   // Extracted text from document
+  analysisData    Json?             // Structured data extracted from document
+  
+  // Extracted insights
+  confidence      Float?            // Confidence level of analysis (0-1)
+  keyPoints       String[]          // Important information extracted
+  anomalies       String[]          // Unusual patterns or outliers
+  actionItems     String[]          // Suggested next steps
+  
+  // NLP analysis data
+  nlpProcessed    Boolean           @default(false)
+  nlpResults      Json?             // Raw NLP API response
+  sentimentScore  Float?            // Document sentiment (-1 to 1)
+  
+  // Timestamps
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model TempDocumentData {
+  id          String            @id @default(cuid())
+  documentId  String    
+  document    FinancialDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Secure data storage (short-term)
+  dataKey     String            // What kind of data (e.g., "password")
+  dataValue   String            // The actual sensitive data value
+  
+  // Security controls
+  expiresAt   DateTime          // Automatic deletion date
+  createdAt   DateTime          @default(now())
+
+  // Indexes for performance
+  @@index([documentId])
+  @@index([expiresAt]) 
 }

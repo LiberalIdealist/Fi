@@ -73,3 +73,26 @@ export default function MarketAnalysisPage() {
     </div>
   );
 }
+
+// Example client-side code to call the merged API route
+async function generateAnalysis(prompt: string, context?: any) {
+  try {
+    const response = await fetch('/api/analysis', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ prompt, context })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error generating analysis:', error);
+    return null;
+  }
+}

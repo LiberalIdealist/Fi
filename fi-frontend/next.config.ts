@@ -22,7 +22,17 @@ const nextConfig = {
         ],
       },
     ]
-  }
+  },
+  // Add this section for GitHub Codespaces compatibility
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '*.app.github.dev',  // Allow GitHub Codespaces URLs
+      ],
+      bodySizeLimit: '20mb', // Increase the limit to 10 MB or any size you need
+    },
+  },
 };
 
 module.exports = nextConfig;

@@ -27,8 +27,15 @@ const NavLinks = styled.div`
   align-items: center;
 `;
 
+interface Session {
+  user: {
+    image?: string;
+    name?: string;
+  };
+}
+
 const Navbar: React.FC = () => {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession() as { data: Session | null; status: string };
   const router = useRouter();
 
   // Use status to conditionally render content
@@ -67,7 +74,7 @@ const Navbar: React.FC = () => {
             {session ? (
               <>
                 <Link href="/profile" className="flex items-center space-x-2">
-                  {session.user?.image && (
+                  {'image' in session.user && session.user.image && (
                     <div className="relative w-8 h-8 rounded-full overflow-hidden">
                       <Image
                         src={session.user.image}
