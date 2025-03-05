@@ -1,5 +1,5 @@
-import { db } from "@/config/firebase.js";
-import { NextResponse } from "next/server.js";
+import { db } from "@/config/firebase";
+import { NextResponse } from "next/server";
 import { Request, Response } from "express";
 
 export async function GET(req: Request, res?: Response) {

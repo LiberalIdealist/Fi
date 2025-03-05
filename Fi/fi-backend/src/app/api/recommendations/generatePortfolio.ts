@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server.js";
-import { generatePortfolio } from "@/utils/chatGPT.js";
+import { NextRequest, NextResponse } from "next/server";
+import { generatePortfolio } from "@/utils/chatGPT";
 
 export async function POST(req: NextRequest) {
   try {

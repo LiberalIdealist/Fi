@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { auth, admin } from '../config/firebase.js'; // Import both auth and admin
+import { auth, admin } from '../config/firebase'; // Import both auth and admin
 
 // Extend Express Request to include user property
 declare global {

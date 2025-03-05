@@ -1,20 +1,13 @@
-import { NextRequest, NextResponse } from "next/server.js";
-import { analyzeUserFinancialProfile } from "@/utils/chatGPT.js";
+import { NextResponse } from "next/server";
+import { analyzeUserFinancialProfile } from "@/utils/chatGPT";
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const userData = await req.json();
-
-    if (!userData) {
-      return NextResponse.json({ error: "User data is required" }, { status: 400 });
-    }
-
-    // Analyze user financial profile using ChatGPT-4o
-    const profileAnalysis = await analyzeUserFinancialProfile(userData);
-
-    return NextResponse.json({ message: "User financial profiling complete", profile: profileAnalysis });
+    const body = await req.json();
+    const result = await analyzeUserFinancialProfile(body);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error("Error in financial profiling:", error);
-    return NextResponse.json({ error: "Failed to generate profile insights" }, { status: 500 });
+    console.error("Error in ChatGPT Profiling:", error);
+    return NextResponse.json({ error: "Failed to analyze profile" }, { status: 500 });
   }
 }

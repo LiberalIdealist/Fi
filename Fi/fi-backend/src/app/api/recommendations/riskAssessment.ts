@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server.js";
-import { analyzeRiskProfile } from "@/utils/gemini.js";
+import { NextRequest, NextResponse } from "next/server";
+import { analyzeRiskProfile } from "@/utils/gemini";
 
 export async function POST(req: NextRequest) {
   try {

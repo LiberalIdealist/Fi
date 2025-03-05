@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server.js";
-import { bucket } from "@/config/cloudStorage.js"; // Use named import instead of default
-import { analyzeText } from "@/utils/googleNLP.js";
+import { NextRequest, NextResponse } from "next/server";
+import { bucket } from "@/config/cloudStorage"; // Use named import instead of default
+import { analyzeText } from "@/utils/googleNLP";
 import pdfParse from "pdf-parse";
 
 export async function POST(req: NextRequest) {
