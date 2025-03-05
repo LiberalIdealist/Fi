@@ -1,9 +1,10 @@
-import { db } from "@/config/firebase";
-import { NextResponse } from "next/server";
+import { db } from "@/config/firebase.js";
+import { NextResponse } from "next/server.js";
+import { Request, Response } from "express";
 
-export async function GET(req: Request) {
+export async function GET(req: Request, res?: Response) {
   try {
-    const userId = "some-user-id"; // Retrieve from request/session
+    const userId = req.params.userId;
     const userDoc = await db.collection("users").doc(userId).get();
 
     if (!userDoc.exists) {

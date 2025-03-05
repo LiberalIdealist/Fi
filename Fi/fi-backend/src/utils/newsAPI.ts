@@ -18,7 +18,7 @@ interface NewsArticle {
  * @param maxResults Maximum number of articles to return
  * @returns Promise resolving to array of news articles
  */
-export async function fetchNewsArticles(
+export async function getMarketNews(
   query: string, 
   maxResults: number = 5
 ): Promise<NewsArticle[]> {

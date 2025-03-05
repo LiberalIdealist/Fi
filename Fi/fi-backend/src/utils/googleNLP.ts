@@ -1,117 +1,46 @@
-import { LanguageServiceClient } from "@google-cloud/language";
-import { bucket } from "@/config/cloudStorage";
-import { DocumentProcessorServiceClient } from "@google-cloud/documentai";
+import { LanguageServiceClient, protos } from "@google-cloud/language";
+import dotenv from "dotenv";
 
-const languageClient = new LanguageServiceClient();
-const documentAiClient = new DocumentProcessorServiceClient();
+dotenv.config();
 
-// Document AI configuration
-const projectId = process.env.GOOGLE_PROJECT_ID;
-const location = 'us'; // or the location where your processor is deployed
-const processorId = process.env.DOCUMENT_AI_PROCESSOR_ID; // Add this to your .env file
+const client = new LanguageServiceClient();
 
-/**
- * Extracts and analyzes text from a PDF file.
- * @param {string} filePath - The path of the uploaded PDF in Google Cloud Storage.
- * @returns {Promise<Object>} - Extracted financial insights.
- */
-export async function analyzeDocument(filePath: string): Promise<any> {
-  try {
-    // Step 1: Download PDF from Google Cloud Storage
-    const file = bucket.file(filePath);
-    const [buffer] = await file.download();
-    
-    // Step 2: Extract text using Google Document AI
-    const extractedText = await extractTextWithDocumentAI(buffer);
-
-    if (!extractedText) {
-      throw new Error("No text found in the document.");
-    }
-
-    // Step 3: Analyze extracted text using Google NLP
-    const document = { content: extractedText, type: "PLAIN_TEXT" as const };
-    const [result] = await languageClient.analyzeEntities({ document });
-    const entities = result.entities || [];
-
-    // Step 4: Extract structured financial data
-    const structuredData = extractFinancialData(entities);
-
-    return {
-      extractedText,
-      structuredData,
-    };
-  } catch (error) {
-    console.error("Error analyzing document:", error);
-    throw new Error(`Failed to process the document: ${error instanceof Error ? error.message : String(error)}`);
-  }
+interface NLPAnalysisResult {
+  entities: string[];
+  sentimentScore: number;
+  sentimentMagnitude: number;
 }
 
 /**
- * Extract text from PDF using Google Document AI
- * @param {Buffer} buffer - PDF file buffer
- * @returns {Promise<string>} - Extracted text
+ * Analyze text content using Google NLP
+ * @param {string} text - The text to analyze
+ * @returns {Promise<NLPAnalysisResult>} - Extracted entities & sentiment data
  */
-async function extractTextWithDocumentAI(buffer: Buffer): Promise<string> {
+export async function analyzeText(text: string): Promise<NLPAnalysisResult> {
   try {
-    if (!projectId || !processorId) {
-      throw new Error("Document AI configuration is incomplete. Check environment variables.");
+    if (!text || text.trim().length === 0) {
+      throw new Error("Text input is required for NLP analysis.");
     }
 
-    const name = `projects/${projectId}/locations/${location}/processors/${processorId}`;
-    
-    // Process the document
-    const request = {
-      name,
-      rawDocument: {
-        content: buffer.toString('base64'),
-        mimeType: 'application/pdf',
-      },
+    // Define Google NLP document
+    const document: protos.google.cloud.language.v1.IDocument = {
+      content: text,
+      type: protos.google.cloud.language.v1.Document.Type.PLAIN_TEXT, // ✅ Fixed Type Error
     };
 
-    const [result] = await documentAiClient.processDocument(request);
-    const { document } = result;
+    // Perform entity analysis
+    const [entityResult] = await client.analyzeEntities({ document });
+    const entities: string[] =
+      entityResult.entities?.map((entity) => entity.name || "").filter(Boolean) || [];
 
-    if (!document || !document.text) {
-      throw new Error("Document AI returned empty result");
-    }
+    // Perform sentiment analysis
+    const [sentimentResult] = await client.analyzeSentiment({ document });
+    const sentimentScore = sentimentResult.documentSentiment?.score ?? 0;
+    const sentimentMagnitude = sentimentResult.documentSentiment?.magnitude ?? 0;
 
-    return document.text;
+    return { entities, sentimentScore, sentimentMagnitude };
   } catch (error) {
-    console.error("Document AI processing error:", error);
-    
-    // Fallback to a simple placeholder if Document AI fails
-    console.log("Using fallback text extraction method");
-    return "Document text extraction failed. This is placeholder text.";
+    console.error("Google NLP Analysis Error:", error);
+    return { entities: [], sentimentScore: 0, sentimentMagnitude: 0 };
   }
-}
-
-/**
- * Extracts relevant financial data from NLP entity analysis.
- * @param {Array} entities - Entities detected by Google NLP.
- * @returns {Object} - Structured financial data.
- */
-function extractFinancialData(entities: any[]) {
-  const financialData: Record<string, any> = {
-    income: null,
-    expenses: null,
-    loans: [],
-    investments: [],
-  };
-
-  for (const entity of entities) {
-    const name = entity.name.toLowerCase();
-    const amount = entity.metadata?.["value"] || entity.metadata?.["amount"] || null;
-
-    if (name.includes("salary") || name.includes("income")) {
-      financialData.income = amount;
-    } else if (name.includes("emi") || name.includes("loan") || name.includes("mortgage")) {
-      financialData.loans.push({ type: name, amount });
-    } else if (name.includes("mutual fund") || name.includes("stocks") || name.includes("real estate")) {
-      financialData.investments.push({ type: name, amount });
-    } else if (name.includes("credit card") || name.includes("expense")) {
-      financialData.expenses = amount;
-    }
-  }
-
-  return financialData;
 }

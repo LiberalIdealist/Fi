@@ -1,23 +1,29 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/config/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { Request, Response } from "express";
+import { admin } from "../../../config/firebase.js";
 
-export async function POST(req: Request) {
+export default async function signup(req: Request, res: Response) {
   try {
-    const { email, password } = await req.json();
-    
+    const { email, password } = req.body;
+
     if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+      return res.status(400).json({ error: "Email and password are required" });
     }
 
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-
-    return NextResponse.json({ 
-      message: "Signup successful", 
-      user: { uid: user.uid, email: user.email } 
+    // Create user with Firebase Admin SDK
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+
+    return res.status(201).json({ 
+      message: "User created successfully", 
+      user: {
+        uid: userRecord.uid,
+        email: userRecord.email
+      }
+    });
+  } catch (error) {
+    console.error("Error signing up user:", error);
+    return res.status(500).json({ error: "Failed to sign up user" });
   }
 }

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { storage, uploadFile } from "@/config/cloudStorage";
+import { NextRequest, NextResponse } from "next/server.js";
+import { storage, uploadFile } from "@/config/cloudStorage.js";
 
 export async function POST(req: NextRequest) {
   try {

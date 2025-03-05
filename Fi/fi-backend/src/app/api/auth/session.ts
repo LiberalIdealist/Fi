@@ -1,44 +1,39 @@
 import { Request, Response } from "express";
-import { auth } from "@/config/firebase";
+import { admin } from "../../../config/firebase.js";
 
 export default async function session(req: Request, res: Response) {
   try {
-    // Check for session cookie or authorization header
-    const sessionCookie = req.cookies.session;
+    // Get ID token from authorization header
     const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
     
-    // No authentication provided
-    if (!sessionCookie && !authHeader) {
-      return res.status(401).json({ error: "No active session" });
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
     }
     
-    let decodedToken;
-    
-    if (sessionCookie) {
-      // Verify the session cookie
-      decodedToken = await auth.verifySessionCookie(sessionCookie);
-    } else if (authHeader && authHeader.startsWith('Bearer ')) {
-      // Verify the ID token if provided as a bearer token
-      const idToken = authHeader.split('Bearer ')[1];
-      decodedToken = await auth.verifyIdToken(idToken);
+    try {
+      // Verify the ID token
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const uid = decodedToken.uid;
+      
+      // Get user details
+      const userRecord = await admin.auth().getUser(uid);
+      
+      return res.status(200).json({
+        authenticated: true,
+        user: {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          displayName: userRecord.displayName || null,
+          photoURL: userRecord.photoURL || null
+        }
+      });
+    } catch (verifyError) {
+      console.error('Token verification error:', verifyError);
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
-    
-    if (!decodedToken) {
-      return res.status(401).json({ error: "Invalid session" });
-    }
-    
-    // Get user details using the UID from the token
-    const user = await auth.getUser(decodedToken.uid);
-    
-    return res.status(200).json({
-      user: {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-      }
-    });
-  } catch (error: any) {
-    return res.status(401).json({ error: error.message || "Authentication failed" });
+  } catch (error) {
+    console.error('Session error:', error);
+    return res.status(500).json({ error: 'Server error checking session' });
   }
 }

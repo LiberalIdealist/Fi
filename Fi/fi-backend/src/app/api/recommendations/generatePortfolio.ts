@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { analyzeUserFinancialProfile } from "@/utils/chatGPT";
+import { NextRequest, NextResponse } from "next/server.js";
+import { generatePortfolio } from "@/utils/chatGPT.js";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate Portfolio using ChatGPT-4o
-    const portfolioData = await analyzeUserFinancialProfile(userProfile);
+    const portfolioData = await generatePortfolio(userProfile);
 
     return NextResponse.json({ message: "Portfolio generated successfully", portfolio: portfolioData });
   } catch (error) {
@@ -18,4 +18,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to generate portfolio" }, { status: 500 });
   }
 }
-export default analyzeUserFinancialProfile;
+export default generatePortfolio;

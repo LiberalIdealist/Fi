@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { admin } from '@/config/firebase';
+import { auth, admin } from '../config/firebase.js'; // Import both auth and admin
 
 // Extend Express Request to include user property
 declare global {
@@ -14,47 +14,28 @@ declare global {
  * Authentication middleware for Express
  * Validates Firebase authentication token and attaches user info to request
  */
-export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  // Get token from Authorization header
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
-
-  // Check for session cookie as fallback
-  const sessionCookie = req.cookies?.session;
-  
-  if (!token && !sessionCookie) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
+export const authMiddleware = async (
+  req: Request, 
+  res: Response, 
+  next: NextFunction
+): Promise<void> => {
   try {
-    let decodedToken;
-    
-    if (token) {
-      // Verify token
-      decodedToken = await admin.auth().verifyIdToken(token);
-    } else if (sessionCookie) {
-      // Verify session cookie
-      decodedToken = await admin.auth().verifySessionCookie(sessionCookie);
-    }
-    
-    if (!decodedToken) {
-      return res.status(403).json({ error: 'Invalid authentication' });
-    }
-    
-    // Check if token is expired
-    const now = Date.now() / 1000;
-    if (decodedToken.exp && decodedToken.exp < now) {
-      return res.status(401).json({ error: 'Token expired' });
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
+
+    if (!token) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
     }
 
-    // Attach the user information to the request
+    // Verify the token
+    const decodedToken = await admin.auth().verifyIdToken(token);
     req.user = decodedToken;
-    
-    // Continue to the next middleware or route handler
-    return next();
+    next();
   } catch (error) {
     console.error('Authentication error:', error);
-    return res.status(403).json({ error: 'Invalid authentication token' });
+    res.status(403).json({ error: "Invalid authentication token" });
   }
 };
 

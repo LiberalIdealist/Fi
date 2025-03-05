@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import Storage  from "@/config/cloudStorage";
+import { NextRequest, NextResponse } from "next/server.js";
+import { deleteFile } from "@/config/cloudStorage.js"; // Use named import instead of default
+import { Storage } from '@google-cloud/storage';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -12,9 +13,9 @@ export async function DELETE(req: NextRequest) {
     // Extract file name from URL
     const bucketName = process.env.GCS_BUCKET_NAME as string;
     const fileName = fileUrl.split(`/${bucketName}/`)[1];
-
     // Delete the file from Google Cloud Storage
-    const bucket = Storage.bucket(bucketName);
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
     const file = bucket.file(fileName);
     await file.delete();
 

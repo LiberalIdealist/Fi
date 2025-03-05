@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { analyzeUserFinancialProfile } from "@/utils/chatGPT";
+import { NextRequest, NextResponse } from "next/server.js";
+import { analyzeRiskProfile } from "@/utils/gemini.js";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Extract risk profile & insights using ChatGPT-4o
-    const profileAnalysis = await analyzeUserFinancialProfile(userProfile);
+    const profileAnalysis = await analyzeRiskProfile(userProfile);
 
     return NextResponse.json({ message: "Risk assessment completed", riskProfile: profileAnalysis });
   } catch (error) {

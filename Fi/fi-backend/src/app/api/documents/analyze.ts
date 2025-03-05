@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import  Storage  from "@/config/cloudStorage";
-import { analyzeDocument } from "@/utils/googleNLP";
+import { NextRequest, NextResponse } from "next/server.js";
+import { bucket } from "@/config/cloudStorage.js"; // Use named import instead of default
+import { analyzeText } from "@/utils/googleNLP.js";
 import pdfParse from "pdf-parse";
 
 export async function POST(req: NextRequest) {
@@ -12,7 +12,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Download the file from Google Cloud Storage
-    const bucket = Storage.bucket(process.env.GCS_BUCKET_NAME as string);
     const fileName = fileUrl.split(`/${process.env.GCS_BUCKET_NAME}/`)[1];
     const file = bucket.file(fileName);
 
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Analyze text using Google NLP
-    const analysis = await analyzeDocument(extractedText);
+    const analysis = await analyzeText(extractedText);
 
     return NextResponse.json({ success: true, analysis });
   } catch (error) {

@@ -1,130 +1,137 @@
 import { OpenAI } from "openai";
 import dotenv from "dotenv";
-import { fetchGoogleSearchResults } from "@/utils/googleSearch";
-import { fetchNewsArticles } from "@/utils/newsAPI";
-import { fetchStockMarketData } from "@/utils/yfinance";
-import { analyzeDocument } from "@/utils/googleNLP";
-import { analyzeRiskProfile } from "@/utils/gemini";
+import { analyzeRiskProfile } from "./gemini.js";
+import { analyzeText } from "./googleNLP.js";
+import { getMarketNews } from "./newsAPI.js";
+import { fetchStockMarketData } from "./yfinance.js";
 
 dotenv.config();
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 /**
- * Generates a comprehensive financial profile analysis.
- * Integrates Gemini (financial behavior), Google NLP (document analysis),
- * and real-time market data for better recommendations.
- * @param {Object} userProfile - The user's financial profile
- * @returns {Promise<Object>} - Analysis results including risk profile, insights, and market conditions.
+ * **Generate a Personalized Investment Portfolio**
+ * Uses:
+ * - **User risk profile**
+ * - **Market trends (via News API & yFinance)**
+ * - **Financial document analysis (via Google NLP)**
  */
-export async function analyzeUserFinancialProfile(userProfile: any) {
+export async function generatePortfolio(userData: any) {
   try {
-    const { responses, documents, userId } = userProfile;
+    // **Extract relevant data**
+    const riskProfile = await analyzeRiskProfile(userData.responses);
+    const documentInsights = await analyzeText(userData.documents);
+    const marketNews = await getMarketNews("global and Indian financial markets");
+    const stockData = await fetchStockMarketData();
 
-    if (!responses || !userId) {
-      throw new Error("Missing user responses or user ID");
-    }
-
-    // Extract risk profile and behavioral insights using Gemini
-    const behavioralInsights = await analyzeRiskProfile(responses);
-
-    // Extract financial document insights using Google NLP
-    const documentInsights = await analyzeDocument(documents);
-
-    // Fetch real-time market data
-    const marketData = await fetchStockMarketData();
-    const newsArticles = await fetchNewsArticles("Indian Economy, Global Markets");
-    const searchResults = await fetchGoogleSearchResults("Indian financial market trends 2025");
-
-    // Format the prompt for ChatGPT
+    // **Construct prompt for ChatGPT**
     const prompt = `
-      You are a financial expert AI. Analyze the user's financial behavior, risk profile,
-      and market conditions to generate a personalized investment portfolio.
+      User Risk Profile: ${JSON.stringify(riskProfile)}
+      Financial Document Analysis: ${JSON.stringify(documentInsights)}
+      Recent Market News: ${JSON.stringify(marketNews)}
+      Stock Market Data: ${JSON.stringify(stockData)}
 
-      **User Profile**
-      - Risk Score: ${behavioralInsights.riskScore}
-      - Financial Behavior: ${JSON.stringify(behavioralInsights.insights)}
-      - Document Insights: ${JSON.stringify(documentInsights)}
-
-      **Market Overview**
-      - Latest Market Data: ${JSON.stringify(marketData)}
-      - Relevant News: ${JSON.stringify(newsArticles)}
-      - Google Search Insights: ${JSON.stringify(searchResults)}
-
-      **Task**
-      Based on this information, generate a **diversified investment portfolio** with allocations
-      to Fixed Deposits, Stocks, Mutual Funds, and Insurance. Include a **SWOT analysis** of the portfolio.
-
-      **Output Format (JSON)**
+      Based on this information, generate an **optimized investment portfolio**.
+      The response format should be structured as follows:
       {
         "portfolio": {
-          "fixedDeposits": { "percentage": <number>, "details": "<string>" },
-          "stocks": { "percentage": <number>, "top_picks": ["<stock1>", "<stock2>"], "sectors": ["<sector1>", "<sector2>"] },
-          "mutualFunds": { "percentage": <number>, "recommended": ["<fund1>", "<fund2>"] },
-          "insurance": { "type": "<insurance_type>", "coverage": "<string>" }
+          "fixedDeposits": { "allocation": "...%", "recommendations": ["...", "..."] },
+          "stocks": { "allocation": "...%", "recommendations": [{ "name": "...", "sector": "...", "rationale": "..." }] },
+          "mutualFunds": { "allocation": "...%", "types": [{ "type": "...", "recommendations": ["...", "..."] }] },
+          "insurance": { "health": "...%", "life": "...%", "term": "...%" }
         },
-        "swotAnalysis": {
-          "strengths": ["<text>", "<text>"],
-          "weaknesses": ["<text>", "<text>"],
-          "opportunities": ["<text>", "<text>"],
-          "threats": ["<text>", "<text>"]
-        }
+        "summary": "Provide an investment summary here"
       }
     `;
 
-    // Call ChatGPT-4o to generate the portfolio
-    const response = await openai.chat.completions.create({
+    const chatResponse = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "system", content: prompt }],
-      response_format: { type: "json_object" },
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1000,
+      response_format: { type: "json_object" }, // ✅ Explicitly define response format
     });
 
-    return response.choices[0].message.content
-      ? JSON.parse(response.choices[0].message.content)
-      : { error: "Failed to generate portfolio" };
+    return JSON.parse(chatResponse.choices[0].message?.content || "{}");
   } catch (error) {
-    console.error("Error generating financial profile analysis:", error);
-    return { error: "Analysis failed" };
+    console.error("Error generating portfolio:", error);
+    return { portfolio: {}, summary: "Portfolio generation failed." };
   }
 }
 
 /**
- * Performs SWOT analysis on a given investment portfolio using ChatGPT-4o.
- * @param {Object} portfolio - The generated investment portfolio
- * @returns {Promise<Object>} - SWOT analysis result
+ * **Generate a SWOT Analysis**
+ * Uses:
+ * - **Portfolio data**
+ * - **Market conditions**
+ * - **User risk profile**
  */
-export async function generateSWOTAnalysis(portfolio: any) {
+export async function generateSWOTAnalysis(portfolioData: string) {
   try {
-    if (!portfolio) {
-      throw new Error("Portfolio data is required");
-    }
-
     const prompt = `
-      Perform a **SWOT analysis** on the following investment portfolio.
+      Perform a SWOT analysis on the following portfolio.
 
-      **Portfolio:**
-      ${JSON.stringify(portfolio, null, 2)}
+      Portfolio Data:
+      ${portfolioData}
 
-      **Output Format (JSON)**
+      Respond in JSON format:
       {
-        "strengths": ["<text>", "<text>"],
-        "weaknesses": ["<text>", "<text>"],
-        "opportunities": ["<text>", "<text>"],
-        "threats": ["<text>", "<text>"]
+        "strengths": ["...", "..."],
+        "weaknesses": ["...", "..."],
+        "opportunities": ["...", "..."],
+        "threats": ["...", "..."]
       }
     `;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: [{ role: "system", content: prompt }],
+      messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
     });
 
-    return response.choices[0].message.content
-      ? JSON.parse(response.choices[0].message.content)
-      : { error: "Failed to generate SWOT analysis" };
+    return JSON.parse(response.choices[0].message?.content || "{}");
   } catch (error) {
-    console.error("Error generating SWOT analysis:", error);
-    return { error: "SWOT analysis failed" };
+    console.error("SWOT Analysis Error:", error);
+    return { strengths: [], weaknesses: [], opportunities: [], threats: [] };
+  }
+}
+
+/**
+ * **Analyze User's Financial Profile**
+ * Uses:
+ * - **Questionnaire responses**
+ * - **Financial document analysis**
+ * - **Spending habits**
+ */
+export async function analyzeUserFinancialProfile(userProfileData: Record<string, any>) {
+  try {
+    const prompt = `
+      Analyze the following user's financial profile and provide:
+      1. **Risk Profile Classification** (Conservative, Moderate, Aggressive)
+      2. **Three Key Financial Insights** about their investment behavior
+      3. **Three Recommended Actions** to optimize their financial strategy
+
+      User Financial Data:
+      ${JSON.stringify(userProfileData, null, 2)}
+
+      Provide output in JSON format:
+      {
+        "riskProfile": "<Conservative | Moderate | Aggressive>",
+        "financialInsights": ["...", "...", "..."],
+        "recommendedActions": ["...", "...", "..."]
+      }
+    `;
+
+    const chatCompletion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" }, // ✅ Ensure correct response format
+    });
+
+    return JSON.parse(chatCompletion.choices[0].message?.content || "{}");
+  } catch (error) {
+    console.error("ChatGPT Financial Profile Analysis Error:", error);
+    return { riskProfile: "Moderate", financialInsights: [], recommendedActions: [] };
   }
 }
