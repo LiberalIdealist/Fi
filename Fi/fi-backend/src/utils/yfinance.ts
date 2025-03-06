@@ -32,6 +32,28 @@ interface MarketData {
   timestamp: string
 }
 
+interface YahooChartMeta {
+  chartPreviousClose: number;
+  regularMarketPrice: number;
+  regularMarketVolume?: number;
+  marketCap?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+  [key: string]: any; // For other potential properties
+}
+
+interface YahooChartResult {
+  meta: YahooChartMeta;
+  [key: string]: any; // For other properties like timestamp, indicators
+}
+
+interface YahooFinanceResponse {
+  chart: {
+    result: YahooChartResult[] | null;
+    error?: any;
+  }
+}
+
 // Cache path - change to JSON file
 const CACHE_PATH = path.join(process.cwd(), 'stock_cache.json');
 const CACHE_TTL = 3600 * 1000; // 1 hour in milliseconds
@@ -150,8 +172,9 @@ export async function fetchStockMarketData(): Promise<MarketData> {
     const indicesData: any = {};
     
     responses.forEach((response, index) => {
-      if (response.data?.chart?.result) {
-        const result = response.data.chart.result[0];
+      const yahooResponse = response.data as YahooFinanceResponse;
+      if (yahooResponse?.chart?.result && yahooResponse.chart.result.length > 0) {
+        const result = yahooResponse.chart.result[0];
         const quote = result.meta;
         const previousClose = quote.chartPreviousClose;
         const currentValue = quote.regularMarketPrice;
@@ -248,11 +271,12 @@ export async function fetchStockDetails(symbol: string): Promise<StockData | nul
       `https://query1.finance.yahoo.com/v8/finance/chart/${normalizedSymbol}?interval=1d`
     );
     
-    if (!response.data.chart.result) {
+    const yahooResponse = response.data as YahooFinanceResponse;
+    if (!yahooResponse.chart.result || yahooResponse.chart.result.length === 0) {
       return null;
     }
     
-    const result = response.data.chart.result[0];
+    const result = yahooResponse.chart.result[0];
     const quote = result.meta;
     const previousClose = quote.chartPreviousClose;
     const currentPrice = quote.regularMarketPrice;
