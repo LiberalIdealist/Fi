@@ -10,6 +10,15 @@ interface GoogleSearchResult {
   snippet: string;
 }
 
+interface GoogleSearchResponse {
+  items?: Array<{
+    title: string;
+    link: string;
+    snippet: string;
+    // Add other fields you use
+  }>;
+}
+
 /**
  * Fetches search results from Google using the Google Custom Search API
  * @param query Search query string
@@ -49,16 +58,17 @@ export async function fetchGoogleSearchResults(
       }
     });
     
-    if (!response.data.items || response.data.items.length === 0) {
+    const data = response.data as GoogleSearchResponse;
+    if (!data.items || data.items.length === 0) {
       return [];
     }
     
     // Transform the response to a simpler format
-    const results: GoogleSearchResult[] = response.data.items.map((item: any) => ({
+    const results: GoogleSearchResult[] = (response.data as GoogleSearchResponse).items?.map((item: any) => ({
       title: item.title,
       link: item.link,
       snippet: item.snippet
-    }));
+    })) || [];
     
     // Cache the results
     searchCache.set(cacheKey, results);

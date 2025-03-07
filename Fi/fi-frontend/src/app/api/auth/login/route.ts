@@ -4,24 +4,23 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password } = await request.json();
     
-    // Call your backend API
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+    // API URL from env var or fallback
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://wealthme-19942791895.asia-south1.run.app';
+    
+    const response = await fetch(`${apiUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
     
-    if (!response.ok) {
-      const error = await response.json();
-      return NextResponse.json({ error: error.message || 'Login failed' }, { status: response.status });
-    }
-    
     const data = await response.json();
     
-    // Set cookies, etc. if needed
+    if (!response.ok) {
+      return NextResponse.json({ error: data.message || 'Login failed' }, { status: response.status });
+    }
     
     return NextResponse.json({ 
-      success: true, 
+      token: data.token,
       user: data.user 
     });
   } catch (error: any) {

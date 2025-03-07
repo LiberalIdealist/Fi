@@ -144,6 +144,18 @@
            scrollbar-thin scrollbar-thumb-gray-700 
            scrollbar-track-transparent;
   }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text;
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-[length:200%_200%] animate-gradient;
+  }
+  
+  .glass-card {
+    @apply backdrop-blur-lg bg-gray-800/50 rounded-xl shadow-xl;
+  }
 }
 
 @layer utilities {

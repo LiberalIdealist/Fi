@@ -1,9 +1,9 @@
 import { OpenAI } from "openai";
 import dotenv from "dotenv";
-import { analyzeRiskProfile } from "./gemini";
-import { analyzeText } from "./googleNLP";
-import { getMarketNews } from "./newsAPI";
-import { fetchStockMarketData } from "./yfinance";
+import { analyzeRiskProfile } from "./gemini.js";
+import { analyzeText } from "./googleNLP.js";
+import { getMarketNews } from "./newsAPI.js";
+import { fetchStockMarketData } from "./yfinance.js";
 
 dotenv.config();
 

@@ -1,5 +1,7 @@
 import { FlatCompat } from '@eslint/eslintrc';
 import eslint from 'eslint';
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
 
 const compat = new FlatCompat({
   // Pass the recommended config as required
@@ -13,19 +15,27 @@ export default [
   },
   {
     // TypeScript files
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
-      parser: '@typescript-eslint/parser',
-      ecmaVersion: 'latest',
-      sourceType: 'module'
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        project: './tsconfig.json'
+      }
     },
-    linterOptions: {
-      reportUnusedDisableDirectives: true
+    plugins: {
+      '@typescript-eslint': tsPlugin
     },
     rules: {
-      'no-console': 'warn',
-      'no-unused-vars': 'warn',
-      'prefer-const': 'warn'
+      // Your rules here
+    }
+  },
+  {
+    files: ['**/*.js', '**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module'
     }
   }
 ];

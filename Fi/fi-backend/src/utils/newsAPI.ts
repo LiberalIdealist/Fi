@@ -12,6 +12,20 @@ interface NewsArticle {
   description: string;
 }
 
+// Add this interface
+interface NewsAPIResponse {
+  articles?: Array<{
+    title: string;
+    description: string;
+    url: string;
+    urlToImage?: string;
+    publishedAt: string;
+    source: {
+      name: string;
+    };
+  }>;
+}
+
 /**
  * Fetches news articles from News API based on the given query
  * @param query Search query for news
@@ -55,18 +69,25 @@ export async function getMarketNews(
       }
     });
     
-    if (!response.data.articles || response.data.articles.length === 0) {
+    // Then update the problematic lines
+    // From:
+    // if (!response.data.articles || response.data.articles.length === 0) {
+    // To:
+    const data = response.data as NewsAPIResponse;
+    if (!data.articles || data.articles.length === 0) {
       return [];
     }
     
-    // Transform the response to our format
-    const articles: NewsArticle[] = response.data.articles.map((article: any) => ({
+    // From:
+    // const articles: NewsArticle[] = response.data.articles.map((article: any) => ({
+    // To:
+    const articles: NewsArticle[] = (response.data as NewsAPIResponse).articles?.map((article: any) => ({
       title: article.title,
       source: article.source.name,
       url: article.url,
       publishedAt: article.publishedAt,
       description: article.description
-    }));
+    })) ?? [];
     
     // Cache the results
     newsCache.set(cacheKey, articles);

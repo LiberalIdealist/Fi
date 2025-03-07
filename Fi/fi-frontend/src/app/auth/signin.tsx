@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function SignIn() {
   const router = useRouter();
@@ -23,8 +24,13 @@ export default function SignIn() {
         body: JSON.stringify({ email, password }),
       });
 
-      if (!response.ok) throw new Error("Invalid credentials");
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
 
+      localStorage.setItem("auth_token", data.token);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Login failed");
@@ -42,8 +48,9 @@ export default function SignIn() {
       
       <div className="relative z-10 w-full max-w-md p-8 backdrop-blur-lg bg-gray-800 bg-opacity-50 rounded-xl shadow-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text mb-2">Fi</h1>
-          <p className="text-gray-300">Sign in to access your financial dashboard</p>
+          <Image src="/logo.png" alt="Fi Logo" width={60} height={60} className="mx-auto mb-4" />
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text mb-2">Sign In to Fi</h1>
+          <p className="text-gray-300">Access your financial dashboard</p>
         </div>
         
         {error && (

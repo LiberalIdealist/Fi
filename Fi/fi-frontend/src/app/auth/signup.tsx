@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from "next/image";
 
 export default function SignUp() {
   const router = useRouter();
@@ -55,8 +56,9 @@ export default function SignUp() {
       
       <div className="relative z-10 w-full max-w-md p-8 backdrop-blur-lg bg-gray-800 bg-opacity-50 rounded-xl shadow-2xl">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text mb-2">Fi</h1>
-          <p className="text-gray-300">Create your account</p>
+          <Image src="/logo.png" alt="Fi Logo" width={60} height={60} className="mx-auto mb-4" />
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text mb-2">Create Account</h1>
+          <p className="text-gray-300">Join Fi for personalized financial insights</p>
         </div>
         
         {error && (

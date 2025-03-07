@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { auth, admin } from '../config/firebase'; // Import both auth and admin
+import { auth, admin } from './firebase.js'; // Import both auth and admin
+import routes, { requiresAuth } from '../routes/routes.js';
 
 // Extend Express Request to include user property
 declare global {
@@ -85,4 +86,13 @@ export const roleMiddleware = (requiredRoles: string[]) => {
     
     return next();
   };
+};
+
+/**
+ * Dynamic authentication middleware
+ * Uses authMiddleware or optionalAuthMiddleware based on route requirements
+ */
+export const routeAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const needsAuth = requiresAuth(req.path);
+  return needsAuth ? authMiddleware(req, res, next) : optionalAuthMiddleware(req, res, next);
 };

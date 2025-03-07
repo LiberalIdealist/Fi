@@ -1,21 +1,25 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
+    "target": "ES2020",
+    "module": "NodeNext",
+    "noEmit": false,
     "rootDir": "./src",
     "outDir": "./dist",
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "allowJs": false,
     "noImplicitAny": true,
     "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "types": ["node", "express"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
-    }
+    },
+    "declaration": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

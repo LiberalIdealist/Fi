@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { 
   Box, Button, FormControl, FormLabel, Heading, Text,
-  Textarea, VStack, useToast, Spinner, Card, CardBody
+  Textarea, Stack, useToast, Spinner, CardBody
 } from '@chakra-ui/react';
+import { Card } from '@chakra-ui/card';
 
 interface FollowUpQuestionsProps {
   questions: string[];
@@ -16,7 +17,7 @@ const FollowUpQuestions = ({ questions, onComplete }: FollowUpQuestionsProps) =>
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const { user, getIdToken } = useAuth();
-  const toast = useToast();
+  const toast = useToast(); // Changed from useTabs to useToast
 
   const handleInputChange = (question: string, value: string) => {
     // Create a question ID by taking the first 6 words and making a slug
@@ -102,7 +103,7 @@ const FollowUpQuestions = ({ questions, onComplete }: FollowUpQuestionsProps) =>
 
   return (
     <Box as="form" onSubmit={handleSubmit} width="100%" maxWidth="800px" mx="auto" p={4}>
-      <VStack spacing={6} align="stretch">
+      <Stack spacing={6} align="stretch"> {/* Changed VStack to Stack */}
         <Heading as="h2" size="xl">Additional Questions</Heading>
         <Text>To provide you with the most accurate financial analysis, please answer these follow-up questions:</Text>
         
@@ -116,9 +117,9 @@ const FollowUpQuestions = ({ questions, onComplete }: FollowUpQuestionsProps) =>
             .replace(/\s+/g, '_');
             
           return (
-            <Card key={index} variant="outline">
-              <CardBody>
-                <FormControl isRequired>
+            <Box key={index} borderWidth="1px" borderRadius="lg" p={4}> {/* Replaced Card */}
+              <Box p={4}> {/* Replaced CardBody */}
+                <FormControl isRequired> {/* Fixed FormControl */}
                   <FormLabel>{question}</FormLabel>
                   <Textarea
                     onChange={(e) => handleInputChange(question, e.target.value)}
@@ -127,15 +128,20 @@ const FollowUpQuestions = ({ questions, onComplete }: FollowUpQuestionsProps) =>
                     rows={3}
                   />
                 </FormControl>
-              </CardBody>
-            </Card>
+              </Box>
+            </Box>
           );
         })}
         
-        <Button type="submit" colorScheme="green" size="lg" isLoading={isLoading}>
+        <Button 
+          type="submit" 
+          colorScheme="green" 
+          size="lg" 
+          disabled={isLoading} // Changed isLoading to disabled
+        >
           {isLoading ? <Spinner /> : 'Complete Financial Profile'}
         </Button>
-      </VStack>
+      </Stack>
     </Box>
   );
 };
