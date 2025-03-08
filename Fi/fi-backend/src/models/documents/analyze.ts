@@ -17,7 +17,7 @@ export async function analyzeDocument(req: Request, res: Response) {
     // Download the file from Google Cloud Storage
     const bucketName = process.env.GCS_BUCKET_NAME as string;
     const fileName = fileUrl.split(`/${bucketName}/`)[1];
-    const file = bucket.file(fileName);
+    const file = bucket.bucket(bucketName).file(fileName);
 
     const [fileBuffer] = await file.download();
     const pdfData = await pdfParse(fileBuffer);

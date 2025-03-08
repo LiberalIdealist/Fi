@@ -17,7 +17,8 @@ export async function deleteDocument(req: Request, res: Response) {
     const fileName = fileUrl.split(`/${bucketName}/`)[1];
     
     // Delete the file from Firebase Storage
-    const file = firebaseStorage.file(fileName);
+    const bucket = firebaseStorage.bucket(bucketName);
+    const file = bucket.file(fileName);
     await file.delete();
 
     res.json({ success: true, message: "File deleted successfully" });

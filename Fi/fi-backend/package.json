@@ -36,7 +36,7 @@
     "next": "^15.2.1",
     "node-cache": "^5.1.2",
     "openai": "^4.86.2",
-    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.10.38",
     "picklejs": "^0.101.0"
   },
   "devDependencies": {

@@ -26,7 +26,7 @@ export async function uploadDocument(req: Request, res: Response) {
     const userId = req.body.userId;
 
     // Define storage path
-    const bucket = firebaseStorage;
+    const bucket = firebaseStorage.bucket(process.env.GCS_BUCKET_NAME);
     const fileName = `uploads/${userId}/${Date.now()}-${file.originalname}`;
     const fileUpload = bucket.file(fileName);
 

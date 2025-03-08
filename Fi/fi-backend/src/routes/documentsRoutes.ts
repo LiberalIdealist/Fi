@@ -1,82 +1,202 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import multer from 'multer';
-import { storage as firebaseStorage } from '../config/firebase.js'; // Use one storage solution
-import { analyzeText } from '../utils/googleNLP.js';
-import pdfParse from 'pdf-parse';
+import { authMiddleware } from '../config/authMiddleware.js'; // Added .js extension
+import { db, storage } from '../config/firebase.js';
+import * as pdfjsLib from 'pdfjs-dist';
+import { parsePdf } from '../utils/pdfParser.js'; // Use existing utility
 
-// Helper function for async route handlers
-const asyncHandler = (fn: Function) => 
-  (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
+// Configure pdfjs worker
+const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.entry');
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
-const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const router = express.Router();
+
+// Add user type definition for req.user
+declare global {
+  namespace Express {
+    interface Request {
+      user: {
+        uid: string;
+        [key: string]: any;
+      };
+    }
+  }
+}
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
+});
+
+// Parse PDF text - Use the utility function instead
+async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
+  return await parsePdf(pdfBuffer);
+}
 
 // Upload document route
-router.post('/upload', upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
-  if (!req.file || !req.body.userId) {
-    res.status(400).json({ error: "File and userId are required" });
-    return;
-  }
+router.post('/upload', authMiddleware, upload.single('document'), async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
 
-  // Define storage path
-  const fileName = `uploads/${req.body.userId}/${Date.now()}-${req.file.originalname}`;
-  const fileUpload = firebaseStorage.file(fileName);
+    const file = req.file;
+    const userId = req.user.uid;
+    const { name, description, category } = req.body;
 
-  // Upload file
-  await fileUpload.save(req.file.buffer, { contentType: req.file.mimetype });
-  const fileUrl = `https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME}/${fileName}`;
+    // Process file based on mimetype
+    let textContent = '';
+    if (file.mimetype === 'application/pdf') {
+      textContent = await extractTextFromPdf(file.buffer);
+    } else if (file.mimetype.startsWith('text/')) {
+      textContent = file.buffer.toString('utf-8');
+    } else {
+      res.status(400).json({ error: 'Unsupported file type. Please upload a PDF or text file.' });
+      return;
+    }
 
-  res.json({ success: true, fileUrl });
-}));
-
-// Analyze document route
-router.post("/analyze", asyncHandler(async (req: Request, res: Response) => {
-  const { fileUrl } = req.body;
+    // Upload file to Firebase Storage
+    const bucket = storage.bucket();
+    const fileRef = bucket.file(`documents/${userId}/${Date.now()}-${file.originalname}`);
     
-  if (!fileUrl) {
-    res.status(400).json({ error: "File URL is required" });
-    return;
+    await fileRef.save(file.buffer, {
+      metadata: {
+        contentType: file.mimetype,
+      }
+    });
+    
+    const downloadUrl = await fileRef.getSignedUrl({
+      action: 'read',
+      expires: '03-01-2500', // Far future expiration
+    });
+
+    // Save document metadata to Firestore
+    const docRef = await db.collection('documents').add({
+      userId,
+      name: name || file.originalname,
+      description: description || '',
+      category: category || 'other',
+      mimeType: file.mimetype,
+      size: file.size,
+      uploadDate: new Date(),
+      fileUrl: downloadUrl[0],
+      textContent,
+    });
+
+    res.status(200).json({
+      id: docRef.id,
+      name: name || file.originalname,
+      description: description || '',
+      category: category || 'other',
+      uploadDate: new Date(),
+      fileUrl: downloadUrl[0],
+    });
+  } catch (error) {
+    console.error('Error uploading document:', error);
+    res.status(500).json({ error: 'Failed to upload document' });
   }
+});
 
-  // Download the file from Google Cloud Storage
-  const bucketName = process.env.GCS_BUCKET_NAME as string;
-  const fileName = fileUrl.split(`/${bucketName}/`)[1];
-  const file = firebaseStorage.file(fileName);
+// Get user documents
+router.get('/', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user.uid;
+    const documentsSnapshot = await db.collection('documents')
+      .where('userId', '==', userId)
+      .orderBy('uploadDate', 'desc')
+      .get();
 
-  const [fileBuffer] = await file.download();
-  const pdfData = await pdfParse(fileBuffer);
-  const extractedText = pdfData.text;
+    const documents: Array<{id: string, [key: string]: any}> = [];
+    documentsSnapshot.forEach(doc => {
+      documents.push({
+        id: doc.id,
+        ...doc.data(),
+      });
+    });
 
-  if (!extractedText) {
-    res.status(500).json({ error: "Could not extract text from PDF" });
-    return;
+    res.json(documents);
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    res.status(500).json({ error: 'Failed to fetch documents' });
   }
+});
 
-  // Analyze text using Google NLP
-  const analysis = await analyzeText(extractedText);
-  res.json({ success: true, analysis });
-}));
-
-// Delete document route
-router.delete('/delete', asyncHandler(async (req: Request, res: Response) => {
-  const { fileUrl } = req.body;
-  
-  if (!fileUrl) {
-    res.status(400).json({ error: "File URL is required" });
-    return;
+// Get document by ID
+router.get('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const documentId = req.params.id;
+    const userId = req.user.uid;
+    
+    const documentSnapshot = await db.collection('documents').doc(documentId).get();
+    
+    if (!documentSnapshot.exists) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+    
+    const documentData = documentSnapshot.data();
+    
+    // Check if this document belongs to the authenticated user
+    if (!documentData || documentData.userId !== userId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    res.json({
+      id: documentSnapshot.id,
+      ...documentData,
+    });
+  } catch (error) {
+    console.error('Error fetching document:', error);
+    res.status(500).json({ error: 'Failed to fetch document' });
   }
+});
 
-  // Extract file name from URL
-  const bucketName = process.env.GCS_BUCKET_NAME as string;
-  const fileName = fileUrl.split(`/${bucketName}/`)[1];
-  
-  // Delete the file
-  const file = firebaseStorage.file(fileName);
-  await file.delete();
-
-  res.json({ success: true, message: "File deleted successfully" });
-}));
+// Delete document
+router.delete('/:id', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const documentId = req.params.id;
+    const userId = req.user.uid;
+    
+    // Get document data to check ownership and get file path
+    const documentSnapshot = await db.collection('documents').doc(documentId).get();
+    
+    if (!documentSnapshot.exists) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+    
+    const documentData = documentSnapshot.data();
+    
+    // Check if this document belongs to the authenticated user
+    if (!documentData || documentData.userId !== userId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    
+    // Get file path from fileUrl
+    const fileUrl = documentData.fileUrl;
+    const urlParts = new URL(fileUrl);
+    const filePath = decodeURIComponent(urlParts.pathname.split('/o/')[1].split('?')[0]);
+    
+    // Delete file from storage
+    try {
+      await storage.bucket().file(filePath).delete();
+    } catch (storageError) {
+      console.error('Error deleting file from storage:', storageError);
+      // Continue execution to delete the database entry
+    }
+    
+    // Delete document from Firestore
+    await db.collection('documents').doc(documentId).delete();
+    
+    res.status(200).json({ message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
 
 export default router;

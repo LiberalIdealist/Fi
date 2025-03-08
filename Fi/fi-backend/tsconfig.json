@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "NodeNext",
+    "module": "ESNext",
     "noEmit": false,
     "rootDir": "./src",
     "outDir": "./dist",
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "Node",
     "strict": true,
     "allowJs": false,
     "noImplicitAny": true,
@@ -19,7 +19,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "declaration": true
+    "declaration": true,
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

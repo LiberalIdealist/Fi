@@ -1,34 +1,31 @@
-import * as admin from "firebase-admin";
-import dotenv from "dotenv";
+import admin from 'firebase-admin';
+import dotenv from 'dotenv';
 import fs from "fs";
 import path from "path";
 
 dotenv.config();
 
-// Handle Google Cloud Credentials
-if (!admin.apps.length) {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    // Decode base64 credentials if applicable
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS.includes("eyJ")) {
-      const tempDir = path.join(process.cwd(), "temp");
-      const credPath = path.join(tempDir, "service-account.json");
-
-      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-
-      fs.writeFileSync(credPath, Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS, "base64").toString("utf-8"));
-      process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
-    }
-
+try {
+  // Check if we have any existing Firebase apps initialized
+  if (!admin.apps.length) {
+    console.log("Initializing Firebase Admin SDK...");
+    
+    // Use application default credentials (from GOOGLE_APPLICATION_CREDENTIALS)
     admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      storageBucket: process.env.GCP_BUCKET_NAME,
+      // No explicit credentials needed - will use GOOGLE_APPLICATION_CREDENTIALS
     });
+    
+    console.log("Firebase Admin SDK initialized successfully");
   } else {
-    throw new Error("❌ Firebase credentials missing!");
+    console.log("Firebase Admin SDK already initialized");
   }
+} catch (error) {
+  console.error("Error initializing Firebase Admin SDK:", error);
+  process.exit(1);
 }
 
-export const db = admin.firestore();
-export const storage = admin.storage().bucket();
-export const auth = admin.auth();
-export { admin };
+const db = admin.firestore();
+const auth = admin.auth();
+const storage = admin.storage();
+
+export { admin, db, auth, storage };

@@ -1,85 +1,149 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import '../styles/globals.css'; // Make sure this path is correct
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gray-900">
-      {/* Animated background elements */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-emerald-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
-      
-      {/* Header */}
-      <header className="relative z-10 p-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text">Fi</h1>
+    <div className="container mx-auto px-4 py-16">
+      {/* Hero Section with Logo and Gradient Background */}
+      <div className="relative bg-gradient-to-br from-blue-900 to-gray-900 rounded-2xl p-10 mb-16 overflow-hidden shadow-xl">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 bg-[url('/pattern.png')] bg-repeat opacity-20"></div>
         </div>
-        <nav>
-          <a href="/signin" className="px-4 py-2 mr-3 text-white hover:text-blue-300 transition-colors">Sign In</a>
-          <a href="/signup" className="px-5 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all duration-300">Sign Up</a>
-        </nav>
-      </header>
-      
-      {/* Hero section */}
-      <section className="relative z-10 flex flex-col items-center justify-center mt-10 px-4 text-white text-center">
-        <h2 className="text-5xl sm:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text">
-          Financial Insights
-        </h2>
-        <p className="text-xl text-gray-300 max-w-2xl mx-auto mb-10">
-          Make smarter financial decisions with our AI-powered platform that analyzes your portfolio and provides personalized recommendations.
-        </p>
-        <a href="/signup" className="px-8 py-4 text-lg font-semibold rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg transition-all duration-300 hover:shadow-xl animate-pulse">
-          Get Started
-        </a>
         
-        {/* Feature cards */}
-        <div className="mt-16 w-full max-w-4xl mx-auto">
-          <div className="relative p-1 rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient bg-[length:200%_200%]">
-            <div className="bg-gray-900 rounded-xl p-8">
-              <h3 className="text-2xl font-bold mb-4">Why Choose Fi?</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-4 bg-gray-800 bg-opacity-50 rounded-lg">
-                  <div className="text-3xl mb-2">📊</div>
-                  <h4 className="text-lg font-semibold mb-2">Portfolio Analysis</h4>
-                  <p className="text-gray-400">Get detailed insights into your investments and performance metrics</p>
-                </div>
-                
-                <div className="p-4 bg-gray-800 bg-opacity-50 rounded-lg">
-                  <div className="text-3xl mb-2">🤖</div>
-                  <h4 className="text-lg font-semibold mb-2">AI Advisor</h4>
-                  <p className="text-gray-400">Receive personalized recommendations based on your financial goals</p>
-                </div>
-                
-                <div className="p-4 bg-gray-800 bg-opacity-50 rounded-lg">
-                  <div className="text-3xl mb-2">🔒</div>
-                  <h4 className="text-lg font-semibold mb-2">Secure & Private</h4>
-                  <p className="text-gray-400">Your financial data is encrypted and never shared with third parties</p>
-                </div>
-              </div>
+        <div className="relative z-10 text-center">
+          <div className="flex justify-center mb-6">
+            <div className="bg-white p-4 rounded-full shadow-lg">
+              <Image 
+                src="/logo.png" 
+                alt="Fi Logo" 
+                width={100} 
+                height={100}
+                className="rounded-full"
+                priority
+              />
             </div>
           </div>
+          <h1 className="text-5xl font-bold mb-6 text-white">Welcome to Fi</h1>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Your AI-powered financial advisor that analyzes your documents, provides personalized insights, 
+            and helps you build a smarter financial future.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mt-10">
+            <Link href="/login" className="w-full sm:w-auto">
+              <span className="inline-block w-full px-8 py-4 rounded-lg text-base font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-lg">
+                Login
+              </span>
+            </Link>
+            <Link href="/signup" className="w-full sm:w-auto">
+              <span className="inline-block w-full px-8 py-4 rounded-lg text-base font-medium bg-white hover:bg-gray-200 text-blue-900 transition-colors shadow-lg">
+                Register
+              </span>
+            </Link>
+          </div>
+        </div>
+      </div>
+      
+      {/* Feature Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg hover:shadow-xl transition-all hover:transform hover:scale-105">
+          <div className="bg-blue-600 w-14 h-14 rounded-lg mb-6 flex items-center justify-center text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-4 text-white">Personalized Analysis</h2>
+          <p className="text-gray-300 mb-4">Get AI-powered insights on your financial status and recommendations tailored to your goals.</p>
+          <Link href="/signup" className="text-blue-400 hover:text-blue-300 inline-flex items-center">
+            Learn more
+            <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
         
-        {/* Testimonial section */}
-        <div className="mt-16 w-full max-w-4xl mx-auto">
-          <blockquote className="p-8 bg-gray-800 bg-opacity-50 rounded-lg text-left">
-            <p className="text-xl italic mb-4">"Fi has transformed how I manage my investments. The AI recommendations have helped me increase my returns by 15% in just three months."</p>
-            <cite className="block text-right text-gray-400">— Sarah Johnson, Software Engineer</cite>
-          </blockquote>
+        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg hover:shadow-xl transition-all hover:transform hover:scale-105">
+          <div className="bg-green-600 w-14 h-14 rounded-lg mb-6 flex items-center justify-center text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-4 text-white">Document Intelligence</h2>
+          <p className="text-gray-300 mb-4">Upload financial documents and let our AI extract valuable insights automatically.</p>
+          <Link href="/signup" className="text-green-400 hover:text-green-300 inline-flex items-center">
+            Learn more
+            <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
         </div>
-      </section>
+        
+        <div className="bg-gray-800 rounded-xl p-8 border border-gray-700 shadow-lg hover:shadow-xl transition-all hover:transform hover:scale-105">
+          <div className="bg-purple-600 w-14 h-14 rounded-lg mb-6 flex items-center justify-center text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold mb-4 text-white">Smart Portfolio</h2>
+          <p className="text-gray-300 mb-4">Receive personalized investment recommendations based on your risk profile and goals.</p>
+          <Link href="/signup" className="text-purple-400 hover:text-purple-300 inline-flex items-center">
+            Learn more
+            <svg xmlns="http://www.w3.org/2000/svg" className="ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+      </div>
       
-      {/* Footer */}
-      <footer className="relative z-10 mt-20 p-6 text-center text-gray-400">
-        <p>© 2025 Fi by WealthME. All rights reserved.</p>
-        <div className="mt-2">
-          <a href="/terms" className="mx-2 hover:text-white">Terms</a>
-          <a href="/privacy" className="mx-2 hover:text-white">Privacy</a>
-          <a href="/contact" className="mx-2 hover:text-white">Contact</a>
+      {/* How It Works Section */}
+      <div className="mb-16">
+        <h2 className="text-3xl font-bold text-center mb-10">How Fi Works</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="text-center">
+            <div className="bg-blue-900 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl font-bold text-white">1</span>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Upload Documents</h3>
+            <p className="text-gray-400">Securely upload your financial documents and statements.</p>
+          </div>
+          
+          <div className="text-center">
+            <div className="bg-blue-900 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl font-bold text-white">2</span>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">AI Analysis</h3>
+            <p className="text-gray-400">Our AI analyzes your financial situation and identifies patterns.</p>
+          </div>
+          
+          <div className="text-center">
+            <div className="bg-blue-900 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl font-bold text-white">3</span>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Get Insights</h3>
+            <p className="text-gray-400">Receive personalized financial insights and recommendations.</p>
+          </div>
+          
+          <div className="text-center">
+            <div className="bg-blue-900 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl font-bold text-white">4</span>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Take Action</h3>
+            <p className="text-gray-400">Implement the recommended actions to optimize your finances.</p>
+          </div>
         </div>
-      </footer>
+      </div>
+      
+      {/* CTA Section */}
+      <div className="text-center bg-gradient-to-r from-blue-900 to-purple-900 p-10 rounded-2xl shadow-xl">
+        <h2 className="text-3xl font-bold mb-4 text-white">Ready to optimize your finances?</h2>
+        <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">Start your journey to financial clarity today with Fi's AI-powered advisor</p>
+        <Link href="/signup">
+          <span className="inline-block px-8 py-4 rounded-lg text-lg font-medium bg-white hover:bg-gray-100 text-blue-900 transition-colors shadow-lg">
+            Get Started Free
+          </span>
+        </Link>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,10 @@ import routes, { requiresAuth } from '../routes/routes.js';
 declare global {
   namespace Express {
     interface Request {
-      user?: admin.auth.DecodedIdToken;
+      user: {
+        uid: string;
+        [key: string]: any;
+      };
     }
   }
 }
