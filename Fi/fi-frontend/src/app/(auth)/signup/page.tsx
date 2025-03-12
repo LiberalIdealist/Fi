@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from "next/image";
 
-export default function SignUp() {
+export default function signup() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -27,7 +27,7 @@ export default function SignUp() {
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/signup", {
+      const response = await fetch("/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
@@ -39,7 +39,7 @@ export default function SignUp() {
       }
 
       // Redirect to signin page after successful signup
-      router.push("/signin?registered=true");
+      router.push("/login?registered=true");
     } catch (err: any) {
       setError(err.message);
     } finally {

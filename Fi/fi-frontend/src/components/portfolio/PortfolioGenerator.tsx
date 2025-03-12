@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { portfolioService, PortfolioData } from '../../services/portfolioService';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/authContext';
 
 export default function PortfolioGenerator() {
   const { user } = useAuth();

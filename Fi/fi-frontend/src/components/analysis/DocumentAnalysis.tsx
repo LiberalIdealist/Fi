@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/authContext';
 import api from '../../utils/api';
 
 // Define interfaces based on the backend response structure
@@ -27,12 +27,12 @@ export interface DocumentAnalysisResult {
 
 // Extend the documentService with needed methods
 const getDocumentAnalyses = async (): Promise<DocumentAnalysisResult[]> => {
-  const response = await api.get('/documents/user-analyses');
+  const response = await api.get('/models/documents/user-analyses');
   return response.data.analyses;
 };
 
 const analyzeDocument = async (fileUrl: string) => {
-  const response = await api.post('/documents/analyze', { fileUrl });
+  const response = await api.post('/models/documents/analyze', { fileUrl });
   return response.data;
 };
 

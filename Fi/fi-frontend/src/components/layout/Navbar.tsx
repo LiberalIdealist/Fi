@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/authContext';
 
 export function Navbar() {
   const { user } = useAuth();
@@ -15,12 +15,12 @@ export function Navbar() {
   }, []);
 
   return (
-    <nav className="bg-gray-950 py-4 shadow-lg">
+    <nav className="bg-gradient-to-r from-gray-950 to-gray-900 py-4 shadow-md">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           {/* Logo and Brand */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
+            <Link href="/" className="flex items-center gap-x-2">
               <Image 
                 src="/logo.png" 
                 alt="Fi Logo" 
@@ -28,7 +28,9 @@ export function Navbar() {
                 height={40} 
                 className="mr-2"
               />
-              <span className="text-xl font-bold text-white">Fi</span>
+              <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                Fi
+              </span>
             </Link>
           </div>
           
@@ -55,10 +57,10 @@ export function Navbar() {
           
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/#features" className="text-gray-300 hover:text-white px-3 py-2">
+            <Link href="/#features" className="text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
               Features
             </Link>
-            <Link href="/#about" className="text-gray-300 hover:text-white px-3 py-2">
+            <Link href="/#about" className="text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
               About
             </Link>
             
@@ -70,7 +72,7 @@ export function Navbar() {
                 </Link>
               ) : (
                 <div className="flex space-x-4">
-                  <Link href="/login" className="text-gray-300 hover:text-white px-3 py-2">
+                  <Link href="/login" className="text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
                     Login
                   </Link>
                   <Link href="/signup" className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
@@ -88,27 +90,27 @@ export function Navbar() {
         {/* Mobile Navigation */}
         {menuOpen && (
           <div className="md:hidden pt-4 pb-2">
-            <Link href="/#features" className="block text-gray-300 hover:text-white px-3 py-2">
+            <Link href="/#features" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
               Features
             </Link>
-            <Link href="/#about" className="block text-gray-300 hover:text-white px-3 py-2">
+            <Link href="/#about" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
               About
             </Link>
             
             {/* Auth links for mobile */}
             {mounted && !user && (
               <>
-                <Link href="/login" className="block text-gray-300 hover:text-white px-3 py-2">
+                <Link href="/login" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
                   Login
                 </Link>
-                <Link href="/signup" className="block text-gray-300 hover:text-white px-3 py-2">
+                <Link href="/signup" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
                   Register
                 </Link>
               </>
             )}
             
             {mounted && user && (
-              <Link href="/dashboard" className="block text-gray-300 hover:text-white px-3 py-2">
+              <Link href="/dashboard" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
                 Dashboard
               </Link>
             )}

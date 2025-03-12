@@ -12,6 +12,7 @@ import chatRoutes from './routes/chatRoutes.js';
 import documentsRoutes from './routes/documentsRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import recommendationsRoutes from './routes/recommendationsRoutes.js';
+import geminiRoutes from './routes/geminiRoutes.js';
 import { authMiddleware } from './config/authMiddleware.js';
 import routes from './routes/routes.js';
 
@@ -20,6 +21,9 @@ dotenv.config();
 
 // Create Express app
 const app = express();
+
+// Set trust proxy for rate limiter
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
@@ -36,7 +40,15 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',
+    'https://ubiquitous-waddle-7v5j49wq95wjhwrrp-3000.app.github.dev'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // Request logging
@@ -46,9 +58,49 @@ app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'healthy' });
 });
 
-// Routes definition endpoint for frontend consumption
-app.get('/routes', (req: Request, res: Response) => {
-  res.json(routes);
+// Home route
+app.get('/', (req, res) => {
+  res.json({ message: 'Fi backend API is running' });
+});
+
+// Type definitions for Express router introspection
+interface RouteInfo {
+  path: string;
+  methods: string[];
+}
+
+// API routes map (helpful for debugging)
+app.get('/routes', (req, res) => {
+  const routes: RouteInfo[] = [];
+  
+  // Extract all registered routes
+  app._router.stack.forEach((middleware: any) => {
+    if (middleware.route) {
+      // Routes registered directly on the app
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      // Router middleware
+      middleware.handle.stack.forEach((handler: any) => {
+        if (handler.route) {
+          const path = handler.route.path;
+          const baseRoute = middleware.regexp.toString()
+            .split('\\')[1]  // Extract base path
+            .replace(/\\/g, '')
+            .replace(/\?/g, '');
+            
+          routes.push({
+            path: '/' + baseRoute + path,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
+      });
+    }
+  });
+  
+  res.json({ routes });
 });
 
 // Mount routes based on your original architecture
@@ -58,6 +110,7 @@ app.use('/chat', authMiddleware, chatRoutes);
 app.use('/documents', authMiddleware, documentsRoutes);
 app.use('/profile', authMiddleware, profileRoutes);
 app.use('/recommendations', authMiddleware, recommendationsRoutes);
+app.use('/gemini', authMiddleware, geminiRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -79,7 +132,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Routes documentation available at http://localhost:${PORT}/routes`);

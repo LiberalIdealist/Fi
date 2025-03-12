@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "../../../hooks/useAuth";
+import { useAuth } from "../../../contexts/authContext";
 import DocumentAnalysis from "../../../components/analysis/DocumentAnalysis";
 import AIProfileSummary from "../../../components/analysis/AIProfileSummary";
 import ProtectedRoute from "../../../components/common/ProtectedRoute";

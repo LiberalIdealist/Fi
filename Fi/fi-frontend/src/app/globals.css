@@ -8,20 +8,13 @@
     --secondary-gradient: linear-gradient(to right, #34d399, #06b6d4);
     --background-start: #1a1a1a;
     --background-end: #2d2d2d;
-    --foreground-rgb: 255, 255, 255;
-    --background-rgb: 17, 24, 39;
   }
 
   body {
     @apply bg-gray-900 text-white;
     min-height: 100vh;
     background: linear-gradient(to bottom, var(--background-start), var(--background-end));
-    color: rgb(var(--foreground-rgb));
-    background: rgb(var(--background-rgb));
-  }
-
-  a {
-    @apply text-inherit no-underline;
+    color: white;
   }
 }
 
@@ -150,18 +143,6 @@
            bg-gray-900/30 rounded-lg 
            scrollbar-thin scrollbar-thumb-gray-700 
            scrollbar-track-transparent;
-  }
-
-  .gradient-text {
-    @apply bg-gradient-to-r from-blue-400 via-purple-500 to-pink-400 text-transparent bg-clip-text;
-  }
-  
-  .gradient-bg {
-    @apply bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-[length:200%_200%] animate-gradient;
-  }
-  
-  .glass-card {
-    @apply backdrop-blur-lg bg-gray-800/50 rounded-xl shadow-xl;
   }
 }
 

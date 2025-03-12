@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../../../hooks/useAuth';
+import { useAuth } from '../../../../contexts/authContext';
 import ProtectedRoute from '../../../../components/common/ProtectedRoute';
 import FollowUpQuestions from '../../../../components/questionnaire/FollowUpQuestions';
 
-export default function FollowUpPage() {
+// Create a client component that uses useSearchParams
+function FollowUpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -107,5 +108,14 @@ export default function FollowUpPage() {
         )}
       </div>
     </ProtectedRoute>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function FollowUpPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <FollowUpContent />
+    </Suspense>
   );
 }

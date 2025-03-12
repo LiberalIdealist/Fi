@@ -1,31 +1,39 @@
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
-import fs from "fs";
-import path from "path";
 
 dotenv.config();
 
 try {
-  // Check if we have any existing Firebase apps initialized
   if (!admin.apps.length) {
-    console.log("Initializing Firebase Admin SDK...");
+    // Get Base64 credentials from environment
+    const base64Creds = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
     
-    // Use application default credentials (from GOOGLE_APPLICATION_CREDENTIALS)
+    if (!base64Creds) {
+      throw new Error('Firebase credentials not found in environment variables');
+    }
+    
+    // Decode Base64 to JSON
+    const credentialsJson = Buffer.from(base64Creds, 'base64').toString('utf8');
+    const serviceAccount = JSON.parse(credentialsJson);
+    
+    // Log project ID for debugging
+    console.log('Initializing Firebase Admin with project:', serviceAccount.project_id);
+    
     admin.initializeApp({
-      // No explicit credentials needed - will use GOOGLE_APPLICATION_CREDENTIALS
+      credential: admin.credential.cert(serviceAccount),
+      // Make sure this matches the project ID in your service account
+      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
+      storageBucket: `${serviceAccount.project_id}.appspot.com`
     });
     
-    console.log("Firebase Admin SDK initialized successfully");
-  } else {
-    console.log("Firebase Admin SDK already initialized");
+    console.log('Firebase Admin initialized successfully');
   }
 } catch (error) {
-  console.error("Error initializing Firebase Admin SDK:", error);
-  process.exit(1);
+  console.error('Firebase Admin initialization error:', error);
 }
 
-const db = admin.firestore();
-const auth = admin.auth();
-const storage = admin.storage();
-
-export { admin, db, auth, storage };
+// Export Firebase services
+export const db = admin.firestore();
+export const auth = admin.auth();
+export const storage = admin.storage();
+export default admin;

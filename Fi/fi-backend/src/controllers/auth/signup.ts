@@ -1,29 +1,57 @@
 import { Request, Response } from "express";
-import { admin } from "../../config/firebase.js";
+import admin, { db } from "../../config/firebase.js";
 
-export default async function signup(req: Request, res: Response) {
+export default async function signup(req: Request, res: Response): Promise<void> {
   try {
-    const { email, password } = req.body;
-
+    const { name, email, password } = req.body;
+    
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+      res.status(400).json({ error: 'Email and password are required' });
+      return;
     }
-
-    // Create user with Firebase Admin SDK
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-    });
-
-    return res.status(201).json({ 
-      message: "User created successfully", 
-      user: {
-        uid: userRecord.uid,
-        email: userRecord.email
+    
+    try {
+      // Create user in Firebase Auth
+      const userRecord = await admin.auth().createUser({
+        email,
+        password,
+        displayName: name || email.split('@')[0]
+      });
+      
+      // Create user document in Firestore
+      await db.collection('users').doc(userRecord.uid).set({
+        name: name || email.split('@')[0],
+        email,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        role: 'user',
+        preferences: {}
+      });
+      
+      // Create custom token for frontend
+      const customToken = await admin.auth().createCustomToken(userRecord.uid);
+      
+      // Get the full profile data
+      const userProfile = await db.collection('users').doc(userRecord.uid).get();
+      
+      res.status(201).json({ 
+        token: customToken,
+        user: {
+          uid: userRecord.uid,
+          email: userRecord.email,
+          displayName: userRecord.displayName,
+          profile: userProfile.data()
+        }
+      });
+    } catch (authError: unknown) {
+      console.error('User creation error:', authError);
+      let errorMessage = 'User creation failed';
+      if (authError instanceof Error) {
+        errorMessage = authError.message;
       }
-    });
+      res.status(400).json({ error: errorMessage });
+    }
   } catch (error) {
-    console.error("Error signing up user:", error);
-    return res.status(500).json({ error: "Failed to sign up user" });
+    console.error('Signup error:', error);
+    res.status(500).json({ error: 'Server error during signup' });
   }
 }

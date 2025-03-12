@@ -2,12 +2,7 @@ import express, { Request, Response } from 'express';
 import multer from 'multer';
 import { authMiddleware } from '../config/authMiddleware.js'; // Added .js extension
 import { db, storage } from '../config/firebase.js';
-import * as pdfjsLib from 'pdfjs-dist';
-import { parsePdf } from '../utils/pdfParser.js'; // Use existing utility
-
-// Configure pdfjs worker
-const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.entry');
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+import { parsePdf } from '../utils/pdfParser.js'; // Only using our simplified parser
 
 const router = express.Router();
 
@@ -26,13 +21,13 @@ declare global {
 // Configure multer for file uploads
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max file size
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max file size
 });
 
-// Parse PDF text - Use the utility function instead
-async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-  return await parsePdf(pdfBuffer);
-}
+// Debug endpoint to check authentication
+router.get('/auth-check', authMiddleware, (req, res) => {
+  res.json({ authenticated: true, user: req.user });
+});
 
 // Upload document route
 router.post('/upload', authMiddleware, upload.single('document'), async (req: Request, res: Response): Promise<void> => {
@@ -43,13 +38,17 @@ router.post('/upload', authMiddleware, upload.single('document'), async (req: Re
     }
 
     const file = req.file;
-    const userId = req.user.uid;
+    const userId = req.body.userId || req.user?.uid;
+    if (!userId) {
+      res.status(400).json({ error: 'User ID is required' });
+      return;
+    }
     const { name, description, category } = req.body;
 
     // Process file based on mimetype
     let textContent = '';
     if (file.mimetype === 'application/pdf') {
-      textContent = await extractTextFromPdf(file.buffer);
+      textContent = await parsePdf(file.buffer);
     } else if (file.mimetype.startsWith('text/')) {
       textContent = file.buffer.toString('utf-8');
     } else {

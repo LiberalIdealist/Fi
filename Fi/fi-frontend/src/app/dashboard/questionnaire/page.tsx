@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../hooks/useAuth';
+import { useAuth } from '../../../contexts/authContext';
 import ProtectedRoute from '../../../components/common/ProtectedRoute';
 import FinancialQuestionnaire from '../../../components/questionnaire/FinancialQuestionnaire';
 import FollowUpQuestions from '../../../components/questionnaire/FollowUpQuestions';

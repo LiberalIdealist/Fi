@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "react-hot-toast";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuth } from "../../contexts/authContext";
 import { geminiService } from "../../services/geminiService";
 
 const FinancialQuestionnaire = ({ onSubmit }: { onSubmit: (answers: Record<string, string>, followUpQuestions?: any) => void }) => {

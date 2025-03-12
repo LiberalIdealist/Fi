@@ -1,25 +1,24 @@
-import { Request, Response } from "express"; 
-import { analyzeRiskProfile } from "../../utils/gemini.js"; // Fixed import path with .js extension
+import { Request, Response } from 'express';
+import { analyzeRiskProfile } from '../../utils/gemini.js';
 
-/**
- * Controller for Gemini AI analysis
- */
-export async function geminiAnalysisController(req: Request, res: Response) {
+// Add Promise<void> return type and don't return any values
+export default async function geminiAnalysisController(req: Request, res: Response): Promise<void> {
   try {
-    const requestData = req.body; // In Express, use req.body instead of req.json()
-
-    if (!requestData || Object.keys(requestData).length === 0) {
-      return res.status(400).json({ error: "No data provided for analysis" });
-    }
-
-    // Call Gemini AI to analyze the provided data
-    const analysisResult = await analyzeRiskProfile(requestData);
-
-    return res.json({ message: "Analysis completed", analysisResult });
+    const questionnaireData = req.body;
+    
+    // Process and validate data
+    const analysisResult = await analyzeRiskProfile(questionnaireData);
+    
+    // Don't return this - just send the response
+    res.status(200).json({ 
+      success: true,
+      analysisResult
+    });
+    
+    // No return statement here
   } catch (error) {
-    console.error("Error processing Gemini analysis:", error);
-    return res.status(500).json({ error: "Failed to analyze data with Gemini" });
+    console.error('Gemini analysis error:', error);
+    res.status(500).json({ error: 'Failed to analyze questionnaire data' });
+    // No return statement here either
   }
 }
-
-export default geminiAnalysisController;

@@ -1,38 +1,40 @@
 import { Request, Response } from "express";
-import { admin } from "../../config/firebase.js";
+import admin, { db } from "../../config/firebase.js";
 
-export default async function login(req: Request, res: Response) {
+export default async function login(req: Request, res: Response): Promise<void> {
   try {
     const { email, password } = req.body;
     
     if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
+      res.status(400).json({ error: "Email and password are required" });
+      return;
     }
     
     try {
-      // Find the user by email
+      // Find user record using Admin SDK
       const userRecord = await admin.auth().getUserByEmail(email);
       
-      // In a real implementation, you'd verify the password
-      // Since Firebase Admin doesn't provide password verification,
-      // we're creating a custom token for the found user
-      
+      // Create a custom token for frontend
       const customToken = await admin.auth().createCustomToken(userRecord.uid);
       
-      return res.status(200).json({ 
+      // Get Firestore profile
+      const userProfile = await db.collection('users').doc(userRecord.uid).get();
+      
+      res.status(200).json({
+        token: customToken,
         user: {
           uid: userRecord.uid,
           email: userRecord.email,
-          displayName: userRecord.displayName || '',
-        },
-        token: customToken
+          displayName: userRecord.displayName || null,
+          profile: userProfile.exists ? userProfile.data() : {}
+        }
       });
-    } catch (authError) {
-      console.error('Authentication error:', authError);
-      res.status(401).json({ error: 'Invalid email or password' });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(401).json({ error: "Invalid email or password" });
     }
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    console.error("Server error during login:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 }

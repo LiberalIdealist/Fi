@@ -44,7 +44,7 @@ export default function PDFUploader({ onUploadSuccess }: PDFUploaderProps) {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch('/api/documents/upload', {
+      const response = await fetch('/models/documents/upload', {
         method: 'POST',
         body: formData,
       });

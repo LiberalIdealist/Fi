@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { auth, admin } from './firebase.js'; // Import both auth and admin
+import auth from './firebase.js';
+import admin from './firebase.js'; // Import admin as default
 import routes, { requiresAuth } from '../routes/routes.js';
 
 // Extend Express Request to include user property
@@ -18,28 +19,38 @@ declare global {
  * Authentication middleware for Express
  * Validates Firebase authentication token and attaches user info to request
  */
-export const authMiddleware = async (
-  req: Request, 
-  res: Response, 
-  next: NextFunction
-): Promise<void> => {
+// This middleware will work with Google tokens without modification
+// Interface for the decoded token from Firebase
+interface DecodedToken {
+  uid: string;
+  email?: string;
+  name?: string;
+  [key: string]: any;
+}
+
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    // Get token from Authorization header
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
 
     if (!token) {
-      res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: 'No authentication token provided' });
       return;
     }
-
-    // Verify the token
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
+    
+    // Works with Google OAuth tokens automatically
+    const decodedToken: DecodedToken = await admin.auth().verifyIdToken(token);
+    
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      name: decodedToken.name || decodedToken.email?.split('@')[0]
+    };
+    
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(403).json({ error: "Invalid authentication token" });
+    console.error('Auth error:', error);
+    res.status(401).json({ error: 'Invalid authentication token' });
   }
 };
 

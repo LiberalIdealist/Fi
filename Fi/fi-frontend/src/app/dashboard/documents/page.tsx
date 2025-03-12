@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useAuth } from '../../../hooks/useAuth';
+import { useAuth } from '../../../contexts/authContext';
 import ProtectedRoute from '../../../components/common/ProtectedRoute';
 import PDFUploader from '../../../components/documents/PDFUploader';
 import Link from 'next/link';

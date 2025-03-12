@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from '../../../hooks/useAuth';
+import { useAuth } from '../../../contexts/authContext';
 import ProtectedRoute from '../../../components/common/ProtectedRoute';
 import PortfolioGenerator from '../../../components/portfolio/PortfolioGenerator';
 

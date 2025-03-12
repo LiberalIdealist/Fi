@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from 'next/navigation';
-import { AuthProvider } from '../../hooks/useAuth';
+import { AuthProvider } from '../../contexts/authContext';
 
 export default function ClientLayoutWrapper({
   children,
