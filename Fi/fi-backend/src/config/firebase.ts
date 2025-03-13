@@ -22,8 +22,7 @@ try {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       // Make sure this matches the project ID in your service account
-      databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
-      storageBucket: `${serviceAccount.project_id}.appspot.com`
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET
     });
     
     console.log('Firebase Admin initialized successfully');

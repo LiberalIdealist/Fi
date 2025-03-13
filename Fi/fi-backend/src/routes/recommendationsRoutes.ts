@@ -32,7 +32,8 @@ router.post('/risk-assessment', asyncHandler(async (req: Request, res: Response)
     return;
   }
 
-  const profileAnalysis = await analyzeRiskProfile(userProfile);
+  const userId = req.body.userId; // Assuming userId is part of the request body
+  const profileAnalysis = await analyzeRiskProfile(userProfile, userId);
   res.json({ message: "Risk assessment completed", riskProfile: profileAnalysis });
 }));
 

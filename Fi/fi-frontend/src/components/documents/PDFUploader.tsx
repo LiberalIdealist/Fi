@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from 'react';
+import { documentService } from '../../services/documentService';
+import { useAuth } from '../../contexts/authContext';
 
-interface PDFUploaderProps {
-  onUploadSuccess?: () => void;
-}
-
-export default function PDFUploader({ onUploadSuccess }: PDFUploaderProps) {
+export default function PDFUploader({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const { user } = useAuth();
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -35,29 +35,26 @@ export default function PDFUploader({ onUploadSuccess }: PDFUploaderProps) {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file || !user) return;
     
     setUploading(true);
     setError(null);
+    setProgress(0);
     
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch('/models/documents/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to upload document');
-      }
+      // Use the documentService with progress tracking
+      const result = await documentService.uploadDocument(file, user.uid, (p) => {
+        setProgress(p);
+      }) as { usingFallback?: boolean };
       
       setFile(null);
       if (onUploadSuccess) {
         onUploadSuccess();
+      }
+      
+      // If the upload was using fallback, show a notice
+      if (result.usingFallback) {
+        setError('Document uploaded using local storage (limited connectivity mode)');
       }
     } catch (err: any) {
       console.error('Error uploading file:', err);
@@ -89,13 +86,25 @@ export default function PDFUploader({ onUploadSuccess }: PDFUploaderProps) {
           </label>
         </div>
         
+        {uploading && (
+          <div className="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full" 
+              style={{ width: `${progress}%` }}
+            ></div>
+            <p className="text-sm text-gray-400 mt-1 text-center">{progress}% Uploaded</p>
+          </div>
+        )}
+        
         {error && (
-          <div className="text-red-400 text-sm">{error}</div>
+          <div className={`text-sm p-3 rounded-md ${error.includes('limited connectivity') ? 'bg-amber-900/20 text-amber-300' : 'text-red-400'}`}>
+            {error}
+          </div>
         )}
         
         <button
           type="submit"
-          disabled={!file || uploading}
+          disabled={!file || uploading || !user}
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {uploading ? 'Uploading...' : 'Upload Document'}

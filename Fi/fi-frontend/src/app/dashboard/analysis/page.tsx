@@ -5,6 +5,7 @@ import { useAuth } from "../../../contexts/authContext";
 import DocumentAnalysis from "../../../components/analysis/DocumentAnalysis";
 import AIProfileSummary from "../../../components/analysis/AIProfileSummary";
 import ProtectedRoute from "../../../components/common/ProtectedRoute";
+import ErrorBoundary from "../../../components/common/ErrorBoundary";
 
 export default function AnalysisPage() {
   const { user } = useAuth();
@@ -13,14 +14,14 @@ export default function AnalysisPage() {
   return (
     <ProtectedRoute>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Financial Analysis</h1>
+        <h1 className="text-3xl font-bold mb-8 text-gray-100">Financial Analysis</h1>
 
         {/* Tab navigation */}
-        <div className="flex mb-6 border-b border-gray-700">
+        <div className="flex mb-6 border-b border-gray-600">
           <button
             className={`px-4 py-2 font-medium ${
               activeTab === "profile"
-                ? "text-blue-500 border-b-2 border-blue-500"
+                ? "text-blue-400 border-b-2 border-blue-400"
                 : "text-gray-400 hover:text-gray-300"
             }`}
             onClick={() => setActiveTab("profile")}
@@ -30,7 +31,7 @@ export default function AnalysisPage() {
           <button
             className={`px-4 py-2 font-medium ${
               activeTab === "documents"
-                ? "text-blue-500 border-b-2 border-blue-500"
+                ? "text-blue-400 border-b-2 border-blue-400"
                 : "text-gray-400 hover:text-gray-300"
             }`}
             onClick={() => setActiveTab("documents")}
@@ -39,15 +40,15 @@ export default function AnalysisPage() {
           </button>
         </div>
 
-        {/* Content area */}
+        {/* Content area with improved styling */}
         <div className="mb-8">
           {activeTab === "profile" && (
-            <div className="bg-gray-800 p-6 rounded-lg">
+            <div className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700">
               {user ? (
                 <AIProfileSummary userId={user.uid} />
               ) : (
-                <div className="text-center">
-                  <h3 className="text-xl font-bold mb-2">
+                <div className="text-center py-8">
+                  <h3 className="text-xl font-bold mb-2 text-gray-200">
                     Authentication Required
                   </h3>
                   <p className="text-gray-400 mb-4">
@@ -64,7 +65,11 @@ export default function AnalysisPage() {
             </div>
           )}
 
-          {activeTab === "documents" && <DocumentAnalysis />}
+          {activeTab === "documents" && (
+            <ErrorBoundary>
+              <DocumentAnalysis />
+            </ErrorBoundary>
+          )}
         </div>
 
         {/* Actions */}

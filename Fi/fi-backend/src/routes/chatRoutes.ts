@@ -19,7 +19,8 @@ router.post('/gemini-analysis', asyncHandler(async (req: Request, res: Response)
     return;
   }
 
-  const analysisResult = await analyzeRiskProfile(requestData);
+  const userId = req.user?.uid || 'anonymous';
+  const analysisResult = await analyzeRiskProfile(requestData, userId);
   res.json({ message: "Analysis completed", analysisResult });
 }));
 

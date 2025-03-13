@@ -7,7 +7,8 @@ export default async function geminiAnalysisController(req: Request, res: Respon
     const questionnaireData = req.body;
     
     // Process and validate data
-    const analysisResult = await analyzeRiskProfile(questionnaireData);
+    const userId = req.user.id; // Assuming userId is available in req.user
+    const analysisResult = await analyzeRiskProfile(questionnaireData, userId);
     
     // Don't return this - just send the response
     res.status(200).json({ 

@@ -21,7 +21,8 @@ const openai = new OpenAI({
 export async function generatePortfolio(userData: any) {
   try {
     // **Extract relevant data**
-    const riskProfile = await analyzeRiskProfile(userData.responses);
+    const userId = userData.userId || 'anonymous';
+    const riskProfile = await analyzeRiskProfile(userData.responses, userId);
     const documentInsights = await analyzeText(userData.documents);
     const marketNews = await getMarketNews("global and Indian financial markets");
     const stockData = await fetchStockMarketData();

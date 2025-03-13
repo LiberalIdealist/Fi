@@ -11,29 +11,75 @@ export const geminiService = {
         .then(() => console.log('Backend connection successful'))
         .catch(err => console.error('Backend health check failed:', err));
       
+      // Add user ID to request if missing
+      if (!questionnaireData.userId) {
+        console.warn('No userId provided in questionnaire data');
+        const userId = localStorage.getItem('fi_user_id'); 
+        if (userId) {
+          questionnaireData.userId = userId;
+          console.log('Added userId from local storage:', userId);
+        }
+      }
+      
+      // Ensure the answers are correctly formatted
+      const formattedData = {
+        answers: questionnaireData.data,
+        userId: questionnaireData.userId
+      };
+
       // Then make the actual request
-      const response = await api.post('/gemini/questionnaire', questionnaireData);
+      const response = await api.post('/gemini/questionnaire', formattedData);
       return response.data;
     } catch (error: any) {
       console.error('Questionnaire submission error:', 
         error.response?.data || error.message || 'Unknown error');
       
-      // Rethrow with more context
-      throw new Error(error.response?.data?.error || 
-        'Failed to submit questionnaire. Please try again.');
+      // Log the complete error for debugging
+      console.error('Complete error details:', error);
+      
+      // Provide a user-friendly error message
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Failed to submit questionnaire. Please try again.'
+      );
     }
   },
-  
-  // Submit follow-up question responses
   submitFollowUp: async (data: any, token?: string) => {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
-    const response = await api.post('/models/chat/geminiAnalysis', data, { headers });
+    const response = await api.post('/gemini/analysis', data, { headers });
     return response.data;
   },
-  
-  // Get analysis results
   getAnalysisResults: async (userId: string) => {
-    const response = await api.get(`/models/chat/analysisResults/${userId}`);
+    const response = await api.get(`/gemini/analysis/${userId}`);
     return response.data;
+  },
+  getAnalysisForUser: async (userId: string) => {
+    try {
+      // First try regular API endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/gemini/analysis-fallback?userId=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('fi_auth_token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analysis: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error in getAnalysisForUser:', error);
+      
+      // Create fallback data in frontend as a last resort
+      return {
+        riskScore: 5,
+        riskProfile: "Moderate (Default)",
+        psychologicalInsights: "A balanced approach to investing is recommended.",
+        financialInsights: "Consider building an emergency fund before pursuing aggressive investments.",
+        recommendations: "Regular investment contributions are crucial for long-term financial growth.",
+        fromClientFallback: true
+      };
+    }
   }
 };

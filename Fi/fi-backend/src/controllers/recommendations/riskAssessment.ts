@@ -10,7 +10,8 @@ export async function riskAssessmentController(req: Request, res: Response) {
     }
 
     // Extract risk profile & insights using Gemini
-    const profileAnalysis = await analyzeRiskProfile(userProfile);
+    const userId = req.body.userId; // Assuming userId is part of the request body
+    const profileAnalysis = await analyzeRiskProfile(userProfile, userId);
 
     return res.json({ 
       message: "Risk assessment completed", 

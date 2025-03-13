@@ -103,7 +103,7 @@ export default function Footer() {
         
         <div className="border-t border-gray-800 pt-8">
           <p className="text-gray-400 text-center">
-            © {new Date().getFullYear()} Fi. All rights reserved.
+            © {new Date().getFullYear()} WealthME. All rights reserved.
           </p>
         </div>
       </div>

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import bodyParser from 'body-parser';
 
 // Add .js extensions for ESM compatibility
 import authRoutes from './routes/authRoutes.js';
@@ -52,6 +53,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // Request logging
+app.use(bodyParser.json());
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
@@ -110,7 +112,7 @@ app.use('/chat', authMiddleware, chatRoutes);
 app.use('/documents', authMiddleware, documentsRoutes);
 app.use('/profile', authMiddleware, profileRoutes);
 app.use('/recommendations', authMiddleware, recommendationsRoutes);
-app.use('/gemini', authMiddleware, geminiRoutes);
+app.use('/gemini', geminiRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -120,14 +122,20 @@ app.use((req: Request, res: Response) => {
   });
 });
 
+// Extend Error type to include status property
+interface CustomError extends Error {
+  status?: number;
+}
+
 // Global error handler with proper type annotations
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: CustomError, req: Request, res: Response, next: NextFunction) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({
-    error: 'Internal Server Error',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'An unexpected error occurred'
-      : err.message
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error',
+    message: err.message || 'An unexpected error occurred'
   });
 });
 
