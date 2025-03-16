@@ -13,10 +13,7 @@ interface State {
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { 
-      hasError: false,
-      error: null
-    };
+    this.state = { hasError: false, error: null };
   }
 
   static getDerivedStateFromError(error: Error): State {
@@ -24,29 +21,24 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('Error caught by ErrorBoundary:', error, errorInfo);
-    
-    // You can log the error to a service here
-    // Example: logErrorToService(error, errorInfo);
+    console.error("Uncaught error:", error, errorInfo);
   }
+
+  reset = (): void => {
+    this.setState({ hasError: false, error: null });
+  };
 
   render(): ReactNode {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-      
-      return (
-        <div className="p-6 rounded-lg bg-red-900/20 border border-red-800">
-          <h2 className="text-xl font-bold mb-2 text-red-300">Something went wrong</h2>
-          <p className="text-red-200 mb-3">
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </p>
+      return this.props.fallback || (
+        <div className="p-6 bg-red-50 rounded-lg border border-red-200">
+          <h3 className="text-xl font-bold mb-2 text-red-800">Something went wrong</h3>
+          <p className="text-red-700 mb-4">{this.state.error?.message || 'An unknown error occurred'}</p>
           <button
-            onClick={() => window.location.reload()}
-            className="bg-red-700 hover:bg-red-600 text-white py-2 px-4 rounded"
+            onClick={this.reset}
+            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded"
           >
-            Reload page
+            Try again
           </button>
         </div>
       );

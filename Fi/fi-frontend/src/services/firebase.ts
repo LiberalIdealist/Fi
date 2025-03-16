@@ -1,6 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
+// Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -10,14 +11,17 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// For debugging, log config but hide sensitive data
-console.log('Firebase config:', {
-  ...firebaseConfig,
-  apiKey: firebaseConfig.apiKey ? '✓ Present' : '❌ Missing'
-});
+// Check if already initialized to avoid duplicate apps
+let app;
+let auth;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+try {
+  // Check if Firebase is already initialized
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  console.log("Firebase initialized successfully");
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+}
 
 export { app, auth };

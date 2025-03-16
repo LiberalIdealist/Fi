@@ -11,8 +11,33 @@ export default async function session(req: Request, res: Response): Promise<void
       const userRecord = await admin.auth().getUser(uid);
       
       // Get user profile from Firestore
-      const userProfile = await db.collection('users').doc(uid).get();
+      const userDocRef = db.collection('users').doc(uid);
+      let userProfile = await userDocRef.get();
+
+      // Create user document if it doesn't exist
+      if (!userProfile.exists) {
+        console.log(`Creating user document for UID: ${uid}`);
+        
+        const userData = {
+          email: userRecord.email || '',
+          displayName: userRecord.displayName || '',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+          authProvider: 'session',
+          role: 'user',
+          preferences: {}
+        };
+        
+        await userDocRef.set(userData);
+        userProfile = await userDocRef.get();
+      } else {
+        // Update last login time
+        await userDocRef.update({
+          lastLogin: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
       
+      // Return user data with profile
       res.status(200).json({
         authenticated: true,
         user: {
@@ -20,18 +45,15 @@ export default async function session(req: Request, res: Response): Promise<void
           email: userRecord.email,
           displayName: userRecord.displayName || null,
           photoURL: userRecord.photoURL || null,
-          profile: userProfile.exists ? userProfile.data() : {}
+          profile: userProfile.data()
         }
       });
-      // No return statement - implicit void
     } catch (verifyError) {
       console.error('User fetch error:', verifyError);
       res.status(401).json({ error: 'Invalid user session' });
-      // No return statement - implicit void
     }
   } catch (error) {
     console.error('Session error:', error);
     res.status(500).json({ error: 'Server error checking session' });
-    // No return statement - implicit void
   }
 }

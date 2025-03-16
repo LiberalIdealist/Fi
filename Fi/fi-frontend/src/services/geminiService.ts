@@ -50,9 +50,32 @@ export const geminiService = {
     const response = await api.post('/gemini/analysis', data, { headers });
     return response.data;
   },
-  getAnalysisResults: async (userId: string) => {
-    const response = await api.get(`/gemini/analysis/${userId}`);
-    return response.data;
+  getAnalysisResults: async () => {
+    try {
+      const response = await api.get('/gemini/analysis');
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to fetch analysis results:', error.message || error);
+      
+      // Handle different error types
+      if (error.isNetworkError) {
+        // Return cached results if available
+        const cachedResults = localStorage.getItem('cached_analysis');
+        if (cachedResults) {
+          return JSON.parse(cachedResults);
+        }
+      }
+      
+      // Return fallback data when API is unavailable
+      return {
+        riskScore: 5,
+        riskProfile: "Moderate (Default)",
+        psychologicalInsights: "No connection to service. Using default recommendations.",
+        financialInsights: "Please try again later to get personalized insights.",
+        recommendations: "Basic recommendation: Consider a balanced portfolio approach.",
+        fromFallback: true
+      };
+    }
   },
   getAnalysisForUser: async (userId: string) => {
     try {
@@ -72,14 +95,7 @@ export const geminiService = {
       console.error('Error in getAnalysisForUser:', error);
       
       // Create fallback data in frontend as a last resort
-      return {
-        riskScore: 5,
-        riskProfile: "Moderate (Default)",
-        psychologicalInsights: "A balanced approach to investing is recommended.",
-        financialInsights: "Consider building an emergency fund before pursuing aggressive investments.",
-        recommendations: "Regular investment contributions are crucial for long-term financial growth.",
-        fromClientFallback: true
-      };
+      
     }
   }
 };

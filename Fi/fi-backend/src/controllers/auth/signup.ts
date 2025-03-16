@@ -18,28 +18,31 @@ export default async function signup(req: Request, res: Response): Promise<void>
         displayName: name || email.split('@')[0]
       });
       
+      const uid = userRecord.uid;
+      
       // Create user document in Firestore
-      await db.collection('users').doc(userRecord.uid).set({
-        name: name || email.split('@')[0],
-        email,
+      const userData = {
+        email: email,
+        displayName: name || email.split('@')[0],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+        authProvider: 'email',
         role: 'user',
         preferences: {}
-      });
+      };
+      
+      await db.collection('users').doc(uid).set(userData);
       
       // Create custom token for frontend
-      const customToken = await admin.auth().createCustomToken(userRecord.uid);
-      
-      // Get the full profile data
-      const userProfile = await db.collection('users').doc(userRecord.uid).get();
+      const customToken = await admin.auth().createCustomToken(uid);
       
       res.status(201).json({ 
         token: customToken,
         user: {
-          uid: userRecord.uid,
+          uid: uid,
           email: userRecord.email,
           displayName: userRecord.displayName,
-          profile: userProfile.data()
+          profile: userData
         }
       });
     } catch (authError: unknown) {

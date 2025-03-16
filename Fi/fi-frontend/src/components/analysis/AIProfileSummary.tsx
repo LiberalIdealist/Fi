@@ -30,7 +30,7 @@ const AIProfileSummary = ({ userId }: { userId: string }) => {
         try {
           // Try the primary method first
           console.log('Trying primary analysis fetch method...');
-          const data = await geminiService.getAnalysisResults(userId);
+          const data = await geminiService.getAnalysisResults();
           setProfile(data);
           setError(null);
           setUsingFallback(false);

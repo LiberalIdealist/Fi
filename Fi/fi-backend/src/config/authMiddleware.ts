@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import auth from './firebase.js';
+import { auth } from '../config/firebase.js';
 import admin from './firebase.js'; // Import admin as default
 import routes, { requiresAuth } from '../routes/routes.js';
 
@@ -31,26 +31,36 @@ interface DecodedToken {
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
-
-    if (!token) {
-      res.status(401).json({ error: 'No authentication token provided' });
-      return;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ error: 'Unauthorized: No token provided' });
+      return; // Don't return the response object
     }
     
-    // Works with Google OAuth tokens automatically
-    const decodedToken: DecodedToken = await admin.auth().verifyIdToken(token);
+    const token = authHeader.split('Bearer ')[1];
     
-    req.user = {
-      uid: decodedToken.uid,
-      email: decodedToken.email,
-      name: decodedToken.name || decodedToken.email?.split('@')[0]
-    };
-    
-    next();
+    try {
+      const decodedToken = await auth.verifyIdToken(token);
+      
+      // Add the verified user info to the request
+      req.user = {
+        uid: decodedToken.uid, // Always use uid from Google
+        email: decodedToken.email,
+        emailVerified: decodedToken.email_verified,
+        name: decodedToken.name || '',
+        picture: decodedToken.picture || '',
+      };
+      
+      next();
+    } catch (tokenError) {
+      console.error('Error verifying token:', tokenError);
+      res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      // Don't return the response
+    }
   } catch (error) {
-    console.error('Auth error:', error);
-    res.status(401).json({ error: 'Invalid authentication token' });
+    console.error('Error in auth middleware:', error);
+    res.status(500).json({ error: 'Internal server error during authentication' });
+    // Don't return the response
   }
 };
 

@@ -1,16 +1,14 @@
-import express from 'express';
-import login from '../controllers/auth/login.js';
-import signup from '../controllers/auth/signup.js';
-import googleAuth from '../controllers/auth/googleAuth.js';
-import session from '../controllers/auth/session.js';
+import { Router } from 'express';
+import { googleAuth, emailLogin, verifySession, register } from '../controllers/auth/index.js';
 import { authMiddleware } from '../config/authMiddleware.js';
+import session from '@/controllers/auth/session.js';
 
-const router = express.Router();
+const router = Router();
 
-// Auth routes
-router.post('/signup', signup);
-router.post('/login', login);
+// Authentication routes
 router.post('/google', googleAuth);
+router.post('/login', emailLogin);
+router.post('/register', register);
 router.get('/session', authMiddleware, session);
 
 export default router;

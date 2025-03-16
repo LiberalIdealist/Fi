@@ -19,6 +19,7 @@ class LocalDocumentStore {
   private documents: Map<string, LocalDocument> = new Map();
   private fileBlobs: Map<string, Buffer> = new Map();
   private nextId = 1;
+  private analyses: Map<string, any> = new Map();
   
   // Add a new document
   addDocument(doc: Omit<LocalDocument, 'id'>): LocalDocument {
@@ -61,6 +62,49 @@ class LocalDocumentStore {
       console.log(`Deleted document from local store: ${id}`);
     }
     return deleted;
+  }
+
+  // Store document analysis
+  storeAnalysis(analysisId: string, analysisData: any): void {
+    this.analyses.set(analysisId, analysisData);
+    console.log(`Analysis stored in local store: ${analysisId}`);
+  }
+
+  // Get a specific analysis by ID
+  getAnalysis(analysisId: string): any {
+    return this.analyses.get(analysisId);
+  }
+
+  // Get all analyses for a document
+  getAnalysesForDocument(documentId: string): any[] {
+    const prefix = `analysis_${documentId.startsWith('local_') ? '' : 'cloud_'}${documentId}`;
+    const results: any[] = [];
+    
+    this.analyses.forEach((analysis, id) => {
+      if (id === prefix || id.startsWith(prefix + '_')) {
+        results.push({
+          id,
+          ...analysis
+        });
+      }
+    });
+    
+    return results;
+  }
+
+  // Get all analyses for a user
+  getAnalysesForUser(userId: string): any[] {
+    const results: any[] = [];
+    
+    this.analyses.forEach((analysis) => {
+      if (analysis.userId === userId) {
+        results.push(analysis);
+      }
+    });
+    
+    return results.sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
   }
 }
 

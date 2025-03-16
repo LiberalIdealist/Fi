@@ -25,8 +25,8 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/auth/login',
-        destination: '/login',
+        source: '/login',
+        destination: '/auth/login',
         permanent: true,
       },
       {
@@ -60,7 +60,7 @@ const nextConfig = {
     return [
       {
         source: '/auth/:path*',
-        destination: 'https://fi-19942791895.asia-southeast1.run.app/:path*', // Point to your backend
+        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`, // Point to your backend
       },
       // Add this new rewrite for the gemini analysis endpoint
       {

@@ -1,50 +1,53 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
+import { ParamsDictionary } from 'express-serve-static-core';
+import { ParsedQs } from 'qs';
 import { db } from '../config/firebase';
-import { analyzeRiskProfile, getAnalysisForUser } from '../utils/gemini'; // Ensure this import is correct
+import { analyzeRiskProfile, getAnalysisForUser } from '../utils/gemini';
+import { authMiddleware } from '../config/authMiddleware'; // Make sure this import exists
 
 const router = Router();
 
-router.post('/questionnaire', asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const { answers, userId } = req.body;
-  console.log('Received questionnaire submission:', req.body);
+// Add auth middleware to ensure we get userId from the token
+router.post('/questionnaire', authMiddleware, asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  const { answers } = req.body;
+  // Get userId from authenticated token instead of request body
+  const userId = req.user.uid;
   
-  if (!answers || !userId) {
-    console.error('Missing required fields: answers and userId');
+  console.log(`Received questionnaire submission for authenticated user: ${userId.substring(0, 8)}...`);
+  
+  if (!answers) {
+    console.error('Missing required field: answers');
     res.status(400).json({ 
       error: 'Bad Request', 
-      message: 'Missing required fields: answers and userId' 
+      message: 'Missing required field: answers' 
     });
     return;
   }
   
   try {
     console.log('Analyzing risk profile...');
-    // Analyze risk profile and store the result in Firestore
+    // Use the userId from authentication token
     const analysis = await analyzeRiskProfile(answers, userId);
     console.log('Analysis result:', analysis);
     
     res.status(200).json(analysis);
   } catch (error) {
     console.error('Error processing questionnaire:', error);
-    next(error); // Pass the error to the next middleware
+    next(error);
   }
 }));
 
-router.get('/analysis', asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const { userId } = req.query;
-  console.log(`Received analysis request for userId: ${userId}`);
-  
-  if (!userId || typeof userId !== 'string') {
-    console.error('Missing or invalid userId parameter');
-    res.status(400).json({ error: 'Missing or invalid userId parameter' });
-    return;
-  }
+// Secure the analysis endpoint
+router.get('/analysis', authMiddleware, asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  // Get userId from the token
+  const userId = req.user.uid;
+  console.log(`Fetching analysis for authenticated user: ${userId.substring(0, 8)}...`);
   
   try {
     console.log('Fetching analysis...');
     
-    // Use the new function that tries both Firestore and memory
+    // Use the authenticated userId
     const analysis = await getAnalysisForUser(userId);
     
     if (!analysis) {
@@ -69,18 +72,15 @@ router.get('/analysis', asyncHandler(async (req: Request, res: Response, next: N
   }
 }));
 
-router.get('/analysis-fallback', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+// Secure the fallback endpoint
+router.get('/analysis-fallback', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   try {
-    const { userId } = req.query;
+    // Get userId from authenticated token
+    const userId = req.user.uid;
     
-    if (!userId || typeof userId !== 'string') {
-      res.status(400).json({ error: 'Missing or invalid userId parameter' });
-      return;
-    }
+    console.log(`Received fallback analysis request for authenticated user: ${userId.substring(0, 8)}...`);
     
-    console.log(`Received fallback analysis request for userId: ${userId}`);
-    
-    // Use the getAnalysisForUser function that tries both Firestore and memory
+    // Use the authenticated userId
     const analysis = await getAnalysisForUser(userId);
     
     if (analysis) {
@@ -90,6 +90,7 @@ router.get('/analysis-fallback', asyncHandler(async (req: Request, res: Response
     
     // Create default response if nothing found
     res.json({
+      userId,
       riskScore: 5,
       riskProfile: "Moderate (Default)",
       psychologicalInsights: "Based on limited information, a balanced approach is recommended.",

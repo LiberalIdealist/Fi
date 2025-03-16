@@ -5,14 +5,17 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/authContext';
 
-export function Navbar() {
-  const { user } = useAuth();
+export default function Navbar() {
+  const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Console log to debug
+  console.log("Navbar rendering, user:", user?.uid || "no user");
 
   return (
     <nav className="bg-gradient-to-r from-gray-950 to-gray-900 py-4 shadow-md">
@@ -28,9 +31,7 @@ export function Navbar() {
                 height={40} 
                 className="mr-2"
               />
-              <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-                Fi
-              </span>
+             
             </Link>
           </div>
           
@@ -67,16 +68,24 @@ export function Navbar() {
             {/* Only show auth-dependent UI after mounting client-side */}
             {mounted ? (
               user ? (
-                <Link href="/dashboard" className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
-                  Dashboard
-                </Link>
+                <>
+                  <Link href="/dashboard" className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
+                    Dashboard
+                  </Link>
+                  <button 
+                    onClick={logout}
+                    className="hover:text-red-300"
+                  >
+                    Logout
+                  </button>
+                </>
               ) : (
                 <div className="flex space-x-4">
-                  <Link href="/login" className="text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
+                  <Link href="/auth/login" className="text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
                     Login
                   </Link>
-                  <Link href="/signup" className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
-                    Register
+                  <Link href="/auth/register" className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white">
+                    Get Started
                   </Link>
                 </div>
               )
@@ -100,19 +109,27 @@ export function Navbar() {
             {/* Auth links for mobile */}
             {mounted && !user && (
               <>
-                <Link href="/login" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
+                <Link href="/auth/login" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
                   Login
                 </Link>
-                <Link href="/signup" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
-                  Register
+                <Link href="/auth/register" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
+                  Get Started
                 </Link>
               </>
             )}
             
             {mounted && user && (
-              <Link href="/dashboard" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
-                Dashboard
-              </Link>
+              <>
+                <Link href="/dashboard" className="block text-gray-300 hover:text-blue-400 px-3 py-2 transition-colors">
+                  Dashboard
+                </Link>
+                <button 
+                  onClick={logout}
+                  className="hover:text-red-300"
+                >
+                  Logout
+                </button>
+              </>
             )}
           </div>
         )}

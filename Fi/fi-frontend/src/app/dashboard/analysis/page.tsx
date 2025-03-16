@@ -6,6 +6,7 @@ import DocumentAnalysis from "../../../components/analysis/DocumentAnalysis";
 import AIProfileSummary from "../../../components/analysis/AIProfileSummary";
 import ProtectedRoute from "../../../components/common/ProtectedRoute";
 import ErrorBoundary from "../../../components/common/ErrorBoundary";
+import Link from "next/link"; // Added Link import
 
 export default function AnalysisPage() {
   const { user } = useAuth();
@@ -54,12 +55,12 @@ export default function AnalysisPage() {
                   <p className="text-gray-400 mb-4">
                     Please log in to view your personalized profile analysis.
                   </p>
-                  <a
+                  <Link
                     href="/auth/login"
                     className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded"
                   >
                     Log In
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
@@ -72,20 +73,20 @@ export default function AnalysisPage() {
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions - FIXED LINKS HERE */}
         <div className="mt-8 flex flex-col sm:flex-row gap-4">
-          <a
+          <Link
             href="/dashboard"
             className="inline-block bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded text-center"
           >
             Back to Dashboard
-          </a>
-          <a
-            href="/portfolio"
+          </Link>
+          <Link
+            href="/dashboard/portfolio" 
             className="inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded text-center"
           >
             View Portfolio Recommendations
-          </a>
+          </Link>
         </div>
       </div>
     </ProtectedRoute>

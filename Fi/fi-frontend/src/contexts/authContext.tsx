@@ -1,135 +1,222 @@
 "use client";
 
-import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../utils/api';
 
-// Define auth user type
-export type User = {
+// Add this import if you're using Next.js router
+import { useRouter } from 'next/navigation';
+
+export interface User {
   uid: string;
   email: string | null;
-  displayName?: string | null;
-  profile?: {
-    role?: string;
-    preferences?: any;
-    createdAt?: string;
-    [key: string]: any;
-  };
-};
+  displayName: string | null;
+  photoURL: string | null;
+  profile?: any;
+}
 
-// Create auth context
-export interface AuthContextType {
+interface AuthContextType {
   user: User | null;
   loading: boolean;
-  getIdToken: () => Promise<string>;
-  login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<User | null>;
   logout: () => Promise<void>;
   checkSession: () => Promise<User | null>;
 }
 
-// Create a default context value for SSR
-const defaultContextValue: AuthContextType = {
-  user: null,
-  loading: true,
-  getIdToken: async () => '',
-  login: async () => {},
-  logout: async () => {},
-  checkSession: async () => null,
-};
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthContext = createContext<AuthContextType>(defaultContextValue);
-
-// Provider component
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Start with loading true
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const router = useRouter();
 
+  // Debug state changes
   useEffect(() => {
-    // Check for token in localStorage on mount
-    const checkAuth = async () => {
+    console.log('AuthContext state changed:', { user: user?.uid || null, loading });
+  }, [user, loading]);
+
+  // Initial session check on mount
+  useEffect(() => {
+    console.log('AuthProvider: Initial mount, checking session');
+    let isMounted = true;
+    
+    const initialSessionCheck = async () => {
       try {
-        // Only run in browser environment
+        // First check if we have saved user data
         if (typeof window !== 'undefined') {
           const token = localStorage.getItem('fi_auth_token');
+          const savedUserData = localStorage.getItem('user_data');
           
+          console.log('AuthProvider: Found token:', !!token, 'Found user data:', !!savedUserData);
+          
+          // If we have saved user data, use it immediately to avoid loading state
+          if (savedUserData && token) {
+            try {
+              const parsedUser = JSON.parse(savedUserData);
+              if (isMounted) {
+                setUser(parsedUser);
+                console.log('AuthProvider: Set user from localStorage');
+              }
+            } catch (e) {
+              console.error('Failed to parse saved user data');
+              localStorage.removeItem('user_data');
+            }
+          }
+          
+          // If we have a token, verify it with the backend
           if (token) {
-            // You could verify the token or fetch user data here
-            const userData = localStorage.getItem('user_data');
-            if (userData) {
-              setUser(JSON.parse(userData));
-            } else {
-              // Try to check session if token exists but no user data
-              await checkSession();
+            try {
+              api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+              const response = await api.get('/auth/session');
+              
+              if (response.data?.user && isMounted) {
+                const userData = response.data.user;
+                setUser(userData);
+                localStorage.setItem('user_data', JSON.stringify(userData));
+                console.log('AuthProvider: Session verified with backend');
+              }
+            } catch (error) {
+              console.error('Session verification failed:', error);
+              // Clear invalid auth data
+              localStorage.removeItem('fi_auth_token');
+              localStorage.removeItem('user_data');
+              if (isMounted) {
+                setUser(null);
+              }
             }
           }
         }
       } catch (error) {
-        console.error("Auth check failed:", error);
+        console.error('Error during initial session check:', error);
       } finally {
-        setLoading(false);
+        // Always set these states when done
+        if (isMounted) {
+          setLoading(false);
+          setInitialCheckDone(true);
+          console.log('AuthProvider: Initial check complete, loading =', false);
+        }
       }
     };
-
-    checkAuth();
+    
+    initialSessionCheck();
+    
+    // Safety timeout - ensure loading state is reset after 3 seconds max
+    const timeoutId = setTimeout(() => {
+      if (isMounted && loading) {
+        console.log('AuthProvider: ⚠️ Safety timeout triggered');
+        setLoading(false);
+        setInitialCheckDone(true);
+      }
+    }, 3000);
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
-  const checkSession = async (): Promise<User | null> => {
+  const loginWithGoogle = async (idToken: string): Promise<User | null> => {
     try {
-      // This endpoint should return full user data including Firestore profile
-      const response = await api.get('/auth/session');
-      const userData = response.data.user;
-      setUser(userData);
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      return userData;
+      setLoading(true);
+      console.log('AuthProvider: Logging in with Google token');
+      
+      const response = await api.post('/auth/google', { idToken });
+      
+      if (response.data?.user) {
+        const userData = response.data.user;
+        setUser(userData);
+        
+        // Store auth data
+        localStorage.setItem('fi_auth_token', response.data.token);
+        localStorage.setItem('user_data', JSON.stringify(userData));
+        
+        console.log('AuthProvider: Google login successful');
+        return userData;
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
-      console.error("Session check failed:", error);
-      await logout();
+      console.error('Google login failed:', error);
       return null;
-    }
-  };
-
-  // Get ID token for API requests
-  const getIdToken = async (): Promise<string> => {
-    // Only run in browser environment
-    if (typeof window === 'undefined') return '';
-    
-    const token = localStorage.getItem('fi_auth_token');
-    if (!token) throw new Error("No authentication token found");
-    return token;
-  };
-
-  // Login function
-  const login = async (email: string, password: string): Promise<void> => {
-    setLoading(true);
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      const data = response.data;
-      
-      localStorage.setItem('fi_auth_token', data.token);
-      localStorage.setItem('user_data', JSON.stringify(data.user));
-      
-      setUser(data.user);
-    } catch (error: any) {
-      console.error("Login failed:", error);
-      throw new Error(error?.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
-  // Logout function
   const logout = async (): Promise<void> => {
-    if (typeof window !== 'undefined') {
+    try {
+      setLoading(true);
+      console.log('AuthProvider: Logging out');
+      
+      // Clear auth data
       localStorage.removeItem('fi_auth_token');
       localStorage.removeItem('user_data');
+      setUser(null);
+      
+      // Try to invalidate the session on the server
+      try {
+        await api.post('/auth/logout');
+      } catch (error) {
+        console.error('Error during server logout:', error);
+      }
+      
+      // Redirect to login
+      router.push('/auth/login');
+    } finally {
+      setLoading(false);
     }
-    setUser(null);
+  };
+
+  const checkSession = async (): Promise<User | null> => {
+    try {
+      console.log('AuthProvider: Checking session');
+      if (typeof window === 'undefined') {
+        console.log('AuthProvider: Server-side check, no session');
+        return null;
+      }
+      
+      // If we already have a user, return it
+      if (user) {
+        console.log('AuthProvider: User already exists, no need to check session');
+        return user;
+      }
+      
+      const token = localStorage.getItem('fi_auth_token');
+      if (!token) {
+        console.log('AuthProvider: No token found');
+        setLoading(false);
+        return null;
+      }
+      
+      console.log('AuthProvider: Token found, verifying with backend');
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      const response = await api.get('/auth/session');
+      
+      if (response.data?.user) {
+        const userData = response.data.user;
+        setUser(userData);
+        localStorage.setItem('user_data', JSON.stringify(userData));
+        console.log('AuthProvider: Session verified successfully');
+        return userData;
+      } else {
+        throw new Error('Invalid session response');
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+      localStorage.removeItem('fi_auth_token');
+      localStorage.removeItem('user_data');
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value = {
     user,
     loading,
-    getIdToken,
-    login,
+    loginWithGoogle,
     logout,
     checkSession
   };
@@ -137,15 +224,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook with SSR safety
 export const useAuth = () => {
-  // For server-side rendering, return the default context
-  if (typeof window === 'undefined') {
-    return defaultContextValue;
-  }
-  
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

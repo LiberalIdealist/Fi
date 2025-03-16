@@ -1,15 +1,15 @@
-import checkAuth from '../utils/api';
+import api from '../utils/api';
 
 export const documentService = {
   uploadDocument: async (file: File, userId: string, onProgress?: (progress: number) => void) => {
-    try {
+try {
       console.log(`Starting upload for user ${userId}, file: ${file.name}`);
       
       // Create FormData
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', userId);
-      formData.append('name', file.name);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('userId', userId);
+    formData.append('name', file.name);
       
       if (file.type) {
         formData.append('type', file.type);
@@ -73,7 +73,7 @@ export const documentService = {
         xhr.send(formData);
       });
     } catch (error) {
-      console.error('Error in uploadDocument:', error);
+      console.error("Error uploading document:", error);
       throw error;
     }
   },
@@ -228,41 +228,7 @@ export const documentService = {
   
   // Get specific document by ID
   getDocument: async (documentId: string) => {
-    try {
-      const token = localStorage.getItem('fi_auth_token');
-      if (!token) throw new Error('Authentication required');
-      
-      // Determine if it's a local document
-      const isLocalDoc = documentId.startsWith('local_');
-      let document;
-      
-      if (isLocalDoc) {
-        const localResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/documents/local/${documentId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!localResponse.ok) {
-          throw new Error(`Failed to fetch document: ${localResponse.statusText}`);
-        }
-        
-        document = await localResponse.json();
-      } else {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/documents/${documentId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch document: ${response.statusText}`);
-        }
-        
-        document = await response.json();
-      }
-      
-      return document;
-    } catch (error) {
-      console.error(`Error fetching document ${documentId}:`, error);
-      throw error;
-    }
+    return api.get(`/api/documents/${documentId}`);
   }
 };
 

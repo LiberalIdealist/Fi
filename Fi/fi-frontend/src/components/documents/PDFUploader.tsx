@@ -1,115 +1,162 @@
 "use client";
 
-import { useState } from 'react';
-import { documentService } from '../../services/documentService';
+import React, { useState } from 'react';
+import { FiUploadCloud, FiFile, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi';
 import { useAuth } from '../../contexts/authContext';
+import api from '../../utils/api';
 
-export default function PDFUploader({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
+// Fixed interface with proper onUploadSuccess prop
+interface PDFUploaderProps {
+  onUploadSuccess: () => void;
+}
+
+const PDFUploader: React.FC<PDFUploaderProps> = ({ onUploadSuccess }) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<number>(0);
   const { user } = useAuth();
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-    
-    // Check if file is PDF
-    if (selectedFile.type !== 'application/pdf') {
-      setError('Please upload a PDF file');
-      setFile(null);
-      return;
+
+  const validateFile = (file: File): boolean => {
+    // Check file type
+    if (file.type !== 'application/pdf') {
+      setError('Only PDF files are supported.');
+      return false;
     }
     
-    // Check file size (10MB limit)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      setError('File size must be less than 10MB');
-      setFile(null);
-      return;
+    // Check file size (10MB max)
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size must be less than 10MB.');
+      return false;
     }
     
-    setFile(selectedFile);
     setError(null);
+    return true;
   };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file || !user) return;
-    
-    setUploading(true);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
-    setProgress(0);
+    
+    if (!e.target.files || e.target.files.length === 0) {
+      setFile(null);
+      return;
+    }
+    
+    const selectedFile = e.target.files[0];
+    if (validateFile(selectedFile)) {
+      setFile(selectedFile);
+    } else {
+      setFile(null);
+      e.target.value = ''; // Reset input
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    if (!user) {
+      setError('You must be logged in to upload files.');
+      return;
+    }
     
     try {
-      // Use the documentService with progress tracking
-      const result = await documentService.uploadDocument(file, user.uid, (p) => {
-        setProgress(p);
-      }) as { usingFallback?: boolean };
+      setIsUploading(true);
+      setProgress(0);
       
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('userId', user.uid);
+      
+      const response = await api.post('/documents/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || 100)
+          );
+          setProgress(percentCompleted);
+        },
+      });
+      
+      setIsUploading(false);
       setFile(null);
-      if (onUploadSuccess) {
-        onUploadSuccess();
-      }
       
-      // If the upload was using fallback, show a notice
-      if (result.usingFallback) {
-        setError('Document uploaded using local storage (limited connectivity mode)');
-      }
-    } catch (err: any) {
-      console.error('Error uploading file:', err);
-      setError(err.message || 'Failed to upload document');
-    } finally {
-      setUploading(false);
+      // Reset the file input
+      const fileInput = document.getElementById('pdf-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
+      // Call the success callback passed from parent
+      onUploadSuccess();
+    } catch (error: any) {
+      setIsUploading(false);
+      setError(error?.response?.data?.error || 'Upload failed. Please try again.');
+      console.error('Upload error:', error);
     }
   };
-  
+
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="flex flex-col space-y-4">
-        <div className="border-2 border-dashed border-gray-600 rounded-lg p-6">
-          <input
-            type="file"
-            id="pdfFile"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <label
-            htmlFor="pdfFile"
-            className="flex flex-col items-center justify-center h-32 cursor-pointer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <span className="text-gray-400">{file ? file.name : 'Click to select a PDF file'}</span>
-          </label>
+    <div className="w-full">
+      {error && (
+        <div className="mb-4 p-3 bg-red-900/50 border border-red-500/50 rounded-md text-red-200 flex items-center">
+          <FiAlertTriangle className="mr-2 flex-shrink-0" />
+          <span>{error}</span>
         </div>
-        
-        {uploading && (
-          <div className="w-full bg-gray-700 rounded-full h-2.5 mb-4">
+      )}
+      
+      <div className="mb-4">
+        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-700/30 border-gray-600/50">
+          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+            {!file ? (
+              <>
+                <FiUploadCloud className="w-8 h-8 mb-3 text-gray-400" />
+                <p className="mb-2 text-sm text-gray-400">
+                  <span className="font-semibold">Click to upload</span> or drag and drop
+                </p>
+                <p className="text-xs text-gray-500">PDF only (Max 10MB)</p>
+              </>
+            ) : (
+              <div className="flex items-center text-blue-400">
+                <FiFile className="w-6 h-6 mr-2" />
+                <span className="font-medium truncate max-w-xs">{file.name}</span>
+              </div>
+            )}
+          </div>
+          <input 
+            id="pdf-upload"
+            type="file" 
+            className="hidden" 
+            accept="application/pdf" 
+            onChange={handleFileChange}
+            disabled={isUploading}
+          />
+        </label>
+      </div>
+      
+      {file && !isUploading && (
+        <button
+          onClick={handleUpload}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-colors"
+        >
+          Upload Document
+        </button>
+      )}
+      
+      {isUploading && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm font-medium text-gray-300">Uploading...</span>
+            <span className="text-sm font-medium text-gray-300">{progress}%</span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2.5 rounded-full" 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
-            <p className="text-sm text-gray-400 mt-1 text-center">{progress}% Uploaded</p>
           </div>
-        )}
-        
-        {error && (
-          <div className={`text-sm p-3 rounded-md ${error.includes('limited connectivity') ? 'bg-amber-900/20 text-amber-300' : 'text-red-400'}`}>
-            {error}
-          </div>
-        )}
-        
-        <button
-          type="submit"
-          disabled={!file || uploading || !user}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {uploading ? 'Uploading...' : 'Upload Document'}
-        </button>
-      </div>
-    </form>
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default PDFUploader;

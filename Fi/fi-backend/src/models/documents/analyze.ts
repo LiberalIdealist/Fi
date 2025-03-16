@@ -1,15 +1,68 @@
 import { Request, Response } from "express";
-import { storage } from "../../config/firebase.js";
+import { storage, db } from "../../config/firebase.js";
 import { analyzeText } from "../../utils/googleNLP.js";
 import { localDocumentStore } from "./localStore.js";
 import pdfParse from "pdf-parse";
 
 /**
- * Analyzes uploaded PDF documents using Google NLP
+ * Safely access Firestore to store analysis results with fallback to local storage
+ * @param analysisResults Analysis data to store
+ */
+async function safelyStoreAnalysis(analysisResults: any): Promise<void> {
+  try {
+    // Ensure userId is present and valid
+    if (!analysisResults.userId) {
+      console.warn('Missing userId in analysis results, cannot store properly');
+      throw new Error('Missing required user identification');
+    }
+
+    // Try Firestore first
+    const collectionRef = db.collection('documentAnalyses');
+    
+    await collectionRef.add({
+      ...analysisResults,
+      createdAt: new Date() // Add timestamp
+    });
+    
+    console.log(`Analysis stored successfully in Firestore for user: ${analysisResults.userId.substring(0, 8)}...`);
+  } catch (dbError) {
+    console.log('Failed to store analysis results in Firestore:', dbError);
+    
+    // Store in local storage instead
+    try {
+      // Check if this is a local document ID
+      const isLocalDoc = analysisResults.documentId?.startsWith('local_');
+      
+      // Store analysis in local storage with consistent ID format
+      const analysisId = `analysis_${isLocalDoc ? '' : 'cloud_'}${analysisResults.documentId}`;
+      
+      localDocumentStore.storeAnalysis(analysisId, {
+        ...analysisResults,
+        createdAt: new Date(),
+        storageType: 'local' // Mark as locally stored
+      });
+      
+      console.log(`Analysis stored successfully in local storage for user: ${analysisResults.userId.substring(0, 8)}...`);
+    } catch (localError) {
+      console.error('Failed to store analysis in local storage:', localError);
+    }
+  }
+}
+
+/**
+ * Analyze uploaded PDF documents using Google NLP
  * Works with both Firebase Storage and locally stored documents
  */
 export async function analyzeDocument(req: Request, res: Response) {
   try {
+    // Ensure authenticated user ID is used
+    const userId = req.user?.uid;
+    
+    // Validate user authentication
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
     const { fileUrl, documentId } = req.body;
     
     if (!fileUrl && !documentId) {
@@ -21,10 +74,11 @@ export async function analyzeDocument(req: Request, res: Response) {
       (documentId && documentId.startsWith('local_')) || 
       (fileUrl && fileUrl.includes('/api/documents/local/'));
     
-    console.log(`Analyzing document: ${fileUrl || documentId} (${isLocalDocument ? 'local' : 'cloud'} storage)`);
+    console.log(`Analyzing document: ${fileUrl || documentId} (${isLocalDocument ? 'local' : 'cloud'} storage) for user: ${userId.substring(0, 8)}...`);
     
     let fileBuffer: Buffer;
     let extractedText: string;
+    let documentOwnerUserId = userId; // Default to current user
 
     // CASE 1: Local document
     if (isLocalDocument) {
@@ -43,8 +97,11 @@ export async function analyzeDocument(req: Request, res: Response) {
           return res.status(404).json({ error: "Local document not found" });
         }
         
-        // Check if user has permissions (if req.user is available)
-        if (req.user && document.userId !== req.user.uid) {
+        // Store the actual document owner's userId for permission checks and storage
+        documentOwnerUserId = document.userId;
+        
+        // Check if user has permissions
+        if (document.userId !== userId) {
           return res.status(403).json({ error: "Access denied to this document" });
         }
         
@@ -85,6 +142,29 @@ export async function analyzeDocument(req: Request, res: Response) {
     // CASE 2: Cloud storage document
     else {
       try {
+        // For cloud documents, verify document ownership in Firestore
+        if (documentId) {
+          try {
+            const docRef = db.collection('documents').doc(documentId);
+            const docSnapshot = await docRef.get();
+            
+            if (!docSnapshot.exists) {
+              return res.status(404).json({ error: "Document not found in Firestore" });
+            }
+            
+            const docData = docSnapshot.data();
+            documentOwnerUserId = docData?.userId;
+            
+            // Verify ownership
+            if (docData?.userId !== userId) {
+              return res.status(403).json({ error: "Access denied to this document" });
+            }
+          } catch (firestoreError) {
+            console.warn("Failed to verify document ownership, proceeding with current user:", firestoreError);
+            // Continue with current user ID if Firestore check fails
+          }
+        }
+
         const bucketName = process.env.FIREBASE_STORAGE_BUCKET || 'wealthme-fi.firebasestorage.app';
         let fileName: string;
 
@@ -142,71 +222,25 @@ export async function analyzeDocument(req: Request, res: Response) {
     }
     
     try {
-      // Try to use Google NLP for more advanced analysis
-      let entities: any[] = [];
-      let sentiment = { score: 0, magnitude: 0 };
-
-      try {
-        // Import and use NLP analysis
-        const { analyzeText } = await import('../../utils/googleNLP.js');
-        
-        // Only analyze a reasonable amount of text (first 100KB)
-        const textToAnalyze = extractedText.substring(0, 100000); 
-        
-        const nlpResult = await analyzeText(textToAnalyze);
-        entities = nlpResult.entities.map(e => ({ name: e, type: 'UNKNOWN', salience: 1 }));
-        sentiment = { 
-          score: nlpResult.sentimentScore, 
-          magnitude: nlpResult.sentimentMagnitude 
-        };
-      } catch (nlpError) {
-        console.warn('Google NLP analysis failed, using basic analysis:', nlpError);
-        
-        // Basic entity extraction as fallback (extract capitalized words)
-        const words = extractedText.split(/\s+/);
-        const extractedEntities = new Set<string>();
-        
-        words.forEach(word => {
-          const cleanWord = word.replace(/[.,;:!?()]/g, '');
-          if (cleanWord.length > 3 && /^[A-Z][a-z]/.test(cleanWord)) {
-            extractedEntities.add(cleanWord);
-          }
-        });
-        
-        entities = Array.from(extractedEntities).slice(0, 20).map(name => ({
-          name,
-          type: 'UNKNOWN',
-          salience: 1
-        }));
-      }
-
-      // Word count and other statistics
-      const wordCount = extractedText.split(/\s+/).length;
-      const characterCount = extractedText.length;
-      const sentenceCount = extractedText.split(/[.!?]+/).filter(s => s.trim()).length;
-
-      // Extract some key phrases as insights
-      const sentencesArr = extractedText.split(/[.!?]+/).filter(s => s.trim().length > 10);
-      const insights = sentencesArr
-        .filter((_s, i) => i % Math.ceil(sentencesArr.length / 5) === 0)  // Get ~5 evenly spaced sentences
-        .slice(0, 5)
-        .map(s => s.trim());
-
-      // Save analysis results
+      // Analyze text using Google NLP
+      const analysis = await analyzeText(extractedText);
+      console.log("NLP Analysis complete");
+      
+      // Prepare results for storage and response
       const analysisResults = {
         documentId,
-        userId: req.user ? req.user.uid : null,
+        userId: documentOwnerUserId, // Always use the document owner's ID
         analyzedAt: new Date(),
+        ...analysis,
         statistics: {
-          wordCount,
-          characterCount,
-          sentenceCount
-        },
-        entities,
-        sentiment,
-        insights,
-        source: isLocalDocument ? 'local' : 'cloud'
+          wordCount: extractedText.split(/\s+/).length,
+          characterCount: extractedText.length,
+          sentenceCount: extractedText.split(/[.!?]+/).filter(s => s.trim()).length
+        }
       };
+      
+      // Store results
+      await safelyStoreAnalysis(analysisResults);
 
       res.json({ 
         success: true, 

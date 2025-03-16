@@ -427,7 +427,17 @@ router.post('/analyze', authMiddleware, async (req: Request, res: Response): Pro
 // Get all document analyses for a user
 router.get('/analyses', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   try {
+    // Always use the authenticated user's ID from the token
     const userId = req.user.uid;
+    
+    if (!userId) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
+    
+    console.log(`Fetching analyses for authenticated user: ${userId.substring(0, 8)}...`);
+    
+    const analyses: any[] = [];
     
     // Try to get analyses from Firestore
     try {
@@ -436,53 +446,153 @@ router.get('/analyses', authMiddleware, async (req: Request, res: Response): Pro
         .orderBy('analyzedAt', 'desc')
         .get();
       
-      const analyses: any[] = [];
       analysesSnapshot.forEach(doc => {
         analyses.push({
           id: doc.id,
           ...doc.data(),
+          storageType: 'cloud'
         });
       });
-      
-      res.json(analyses);
-      return;
-    } catch (error) {
-      console.error('Error fetching analyses from Firestore:', error);
-      // Fall through to fetch documents and generate placeholder analyses
+    } catch (firestoreError) {
+      console.warn('Failed to fetch analyses from Firestore:', firestoreError);
+      // Continue to try local storage
     }
     
-    // If no analyses found or Firestore error, create placeholders from documents
-    const documentsSnapshot = await db.collection('documents')
-      .where('userId', '==', userId)
-      .orderBy('uploadDate', 'desc')
-      .get();
+    // Also get analyses from local storage
+    const localAnalyses = localDocumentStore.getAnalysesForUser(userId);
     
-    const documents: any[] = [];
-    documentsSnapshot.forEach(doc => {
-      documents.push({
-        id: doc.id,
-        ...doc.data(),
-      });
+    // Add local analyses and deduplicate if needed
+    localAnalyses.forEach(localAnalysis => {
+      // Verify this analysis belongs to our authenticated user
+      if (localAnalysis.userId === userId) {
+        analyses.push({
+          ...localAnalysis,
+          storageType: 'local'
+        });
+      }
     });
     
-    // Also fetch local documents
-    const localDocs = localDocumentStore.getDocumentsForUser(userId);
+    // Sort by date
+    analyses.sort((a, b) => {
+      const dateA = new Date(a.analyzedAt || a.createdAt).getTime();
+      const dateB = new Date(b.analyzedAt || b.createdAt).getTime();
+      return dateB - dateA;
+    });
     
-    // Create placeholder analyses for all documents
-    const placeholderAnalyses = [...documents, ...localDocs].map(doc => ({
-      documentId: doc.id,
-      documentName: doc.name,
-      uploadTimestamp: doc.uploadDate ? new Date(doc.uploadDate).getTime() : Date.now(),
-      fileUrl: doc.fileUrl || doc.localUrl,
-      needsAnalysis: true
-    }));
-    
-    res.json(placeholderAnalyses);
+    res.json(analyses);
   } catch (error) {
     console.error('Error fetching document analyses:', error);
     res.status(500).json({ error: 'Failed to fetch document analyses' });
   }
 });
+
+// Add this route for getting analyses
+
+// Get all document analyses for a user
+router.get('/analyses', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user.uid;
+    const analyses: any[] = [];
+    
+    // Try to get analyses from Firestore
+    try {
+      const analysesSnapshot = await db.collection('documentAnalyses')
+        .where('userId', '==', userId)
+        .orderBy('analyzedAt', 'desc')
+        .get();
+      
+      analysesSnapshot.forEach(doc => {
+        analyses.push({
+          id: doc.id,
+          ...doc.data(),
+          storageType: 'cloud'
+        });
+      });
+    } catch (firestoreError) {
+      console.warn('Failed to fetch analyses from Firestore:', firestoreError);
+      // Continue to try local storage
+    }
+    
+    // Also get analyses from local storage
+    const localAnalyses = localDocumentStore.getAnalysesForUser(userId);
+    
+    // Add local analyses and deduplicate if needed
+    localAnalyses.forEach(localAnalysis => {
+      // Check if we already have this analysis from Firestore
+      const duplicate = analyses.find(a => 
+        a.documentId === localAnalysis.documentId && 
+        a.analyzedAt === localAnalysis.analyzedAt
+      );
+      
+      if (!duplicate) {
+        analyses.push({
+          ...localAnalysis,
+          storageType: 'local'
+        });
+      }
+    });
+    
+    // Sort by date
+    analyses.sort((a, b) => {
+      const dateA = new Date(a.analyzedAt || a.createdAt).getTime();
+      const dateB = new Date(b.analyzedAt || b.createdAt).getTime();
+      return dateB - dateA;
+    });
+    
+    // If no analyses were found, create placeholders for existing documents
+    if (analyses.length === 0) {
+      // Try to get documents from both sources
+      const documents = await getDocumentsForUser(userId);
+      
+      // Create placeholder analyses for all documents
+      const placeholderAnalyses = documents.map(doc => ({
+        documentId: doc.id,
+        documentName: doc.name || 'Unnamed Document',
+        uploadTimestamp: doc.uploadDate ? new Date(doc.uploadDate).getTime() : Date.now(),
+        fileUrl: doc.fileUrl || doc.localUrl,
+        needsAnalysis: true,
+        userId
+      }));
+      
+      res.json(placeholderAnalyses);
+      return;
+    }
+    
+    res.json(analyses);
+  } catch (error) {
+    console.error('Error fetching document analyses:', error);
+    res.status(500).json({ error: 'Failed to fetch document analyses' });
+  }
+});
+
+// Helper function to get documents from both sources
+async function getDocumentsForUser(userId: string) {
+  const documents: any[] = [];
+  
+  // Try Firestore documents
+  try {
+    const docsSnapshot = await db.collection('documents')
+      .where('userId', '==', userId)
+      .orderBy('uploadDate', 'desc')
+      .get();
+    
+    docsSnapshot.forEach(doc => {
+      documents.push({
+        id: doc.id,
+        ...doc.data(),
+        storageType: 'cloud'
+      });
+    });
+  } catch (error) {
+    console.warn('Failed to fetch documents from Firestore:', error);
+  }
+  
+  // Add local documents
+  const localDocs = localDocumentStore.getDocumentsForUser(userId);
+  documents.push(...localDocs.map(doc => ({...doc, storageType: 'local'})));
+  
+  return documents;
+}
 
 export default router;
 
@@ -612,3 +722,59 @@ async function analyzeDocument(req: express.Request<ParamsDictionary, any, any, 
   }
 }
 
+// Add this route for getting a specific analysis
+
+// Get analysis for a specific document
+router.get('/analysis/:documentId', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { documentId } = req.params;
+    const userId = req.user.uid;
+    
+    // First try to get from Firestore
+    try {
+      const analysesSnapshot = await db.collection('documentAnalyses')
+        .where('documentId', '==', documentId)
+        .where('userId', '==', userId)
+        .orderBy('analyzedAt', 'desc')
+        .limit(1)
+        .get();
+      
+      if (!analysesSnapshot.empty) {
+        const analysis = analysesSnapshot.docs[0].data();
+        res.json({
+          id: analysesSnapshot.docs[0].id,
+          ...analysis,
+          storageType: 'cloud'
+        });
+        return;
+      }
+    } catch (firestoreError) {
+      console.warn('Failed to fetch analysis from Firestore:', firestoreError);
+    }
+    
+    // If not found in Firestore, try local storage
+    const isLocalDoc = documentId.startsWith('local_');
+    const analysisId = `analysis_${isLocalDoc ? '' : 'cloud_'}${documentId}`;
+    const localAnalysis = localDocumentStore.getAnalysis(analysisId);
+    
+    if (localAnalysis) {
+      // Verify ownership
+      if (localAnalysis.userId === userId) {
+        res.json({
+          ...localAnalysis,
+          storageType: 'local'
+        });
+        return;
+      } else {
+        res.status(403).json({ error: 'Access denied to this analysis' });
+        return;
+      }
+    }
+    
+    // If not found anywhere, return a 404
+    res.status(404).json({ error: 'Analysis not found' });
+  } catch (error) {
+    console.error('Error fetching document analysis:', error);
+    res.status(500).json({ error: 'Failed to fetch document analysis' });
+  }
+});

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authService } from "../../services/authService";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../contexts/authContext';
@@ -13,48 +12,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Add console logs for debugging
     console.log("Dashboard layout mounted");
-    const token = localStorage.getItem("fi_auth_token");
-    console.log("Token found:", !!token);
-    
-    // Don't redirect immediately - give time to debug
-    const checkAuth = async () => {
-      try {
-        if (!token) {
-          console.log("No token found, redirecting to login");
-          router.push("/login");
-          return;
-        }
-        
-        // Verify token with backend - only if you need to
-        // Comment this out first to see if it's causing the issue
-        /*
-        await authService.checkAuth();
-        console.log("Auth check passed");
-        */
-        
-        setLoading(false);
-      } catch (error) {
-        console.error("Auth check failed:", error);
-        localStorage.removeItem("fi_auth_token");
-        localStorage.removeItem("user_data");
-        router.push("/login");
-      }
-    };
-    
-    checkAuth();
-  }, [router]);
-
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
+    // No auth check here - let ProtectedRoute handle it
+  }, []);
 
   const isActive = (path: string) => {
     return pathname === path ? 'bg-gray-800' : 'hover:bg-gray-800';

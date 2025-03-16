@@ -19,8 +19,28 @@ const genAI = new GoogleGenerativeAI(apiKey as string);
  */
 export async function analyzeRiskProfile(responses: Record<string, any>, userId: string) {
   try {
+    if (!userId) {
+      throw new Error("Missing required userId parameter");
+    }
+    
+    console.log(`Analyzing risk profile for user: ${userId.substring(0, 8)}...`);
+    
+    // Check if analysis already exists for this user to prevent duplicates
+    console.log("Checking if analysis already exists for this user...");
+    const existingAnalysis = await getAnalysisForUser(userId);
+    
+    if (existingAnalysis) {
+      console.log(`Analysis already exists for user ${userId.substring(0, 8)}, returning existing data`);
+      return {
+        ...existingAnalysis,
+        fromExisting: true
+      };
+    }
+    
+    console.log("No existing analysis found, generating new analysis...");
+    
     // Use gemini-1.5-flash for better JSON compliance
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Improved prompt that strongly enforces plain text format
     const prompt = `
@@ -51,20 +71,20 @@ export async function analyzeRiskProfile(responses: Record<string, any>, userId:
 
     // Store the analysis result in Firestore with fallback to in-memory storage
     let savedToFirestore = false;
-    let documentId = 'geminiAnalyses';
+    let documentId = '';
     
     try {
       console.log('Attempting to save analysis to Firestore...');
       
-      // Create a direct document reference with auto-generated ID
-      const docRef = db.collection('userId').doc();
+      // Changed collection name from 'userId' to 'geminiAnalyses'
+      const docRef = db.collection('geminiAnalyses').doc();
       documentId = docRef.id;
       
       console.log(`Creating document with ID: ${docRef.id}`);
       
-      // Prepare the data
+      // Prepare the data with userId from the token
       const analysisData = {
-        userId,
+        userId, // The Google-provided UID
         riskScore: analysis.riskScore,
         riskProfile: analysis.riskProfile,
         psychologicalInsights: analysis.psychologicalInsights,
@@ -74,7 +94,6 @@ export async function analyzeRiskProfile(responses: Record<string, any>, userId:
         id: docRef.id
       };
       
-      // Use set() instead of add()
       await docRef.set(analysisData);
       
       console.log(`Analysis saved successfully to Firestore with ID: ${docRef.id}`);
@@ -91,7 +110,7 @@ export async function analyzeRiskProfile(responses: Record<string, any>, userId:
       // Save to in-memory storage as fallback
       const fallbackId = `memory_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       inMemoryStore[fallbackId] = {
-        userId,
+        userId, // The Google-provided UID
         ...analysis,
         createdAt: new Date(),
         id: fallbackId,
@@ -134,36 +153,64 @@ export async function listAvailableModels() {
   }
 }
 
-// Add a function to retrieve analysis from memory or Firestore
+// Updated function to retrieve analysis from memory or Firestore
 export async function getAnalysisForUser(userId: string) {
+  if (!userId) {
+    console.error("Missing userId parameter");
+    return null;
+  }
+  
   try {
-    console.log(`Getting analysis for user ${userId}`);
+    console.log(`Getting analysis for user ${userId.substring(0, 8)}...`);
+    console.log('Database and collection: wealthme-fi/geminiAnalyses');
     
-    // Try Firestore first
+    // Try Firestore with improved error logging
     try {
-      const snapshot = await db.collection('userId')
+      console.log(`Querying Firestore collection 'geminiAnalyses' where userId == '${userId}'`);
+      
+      const snapshot = await db.collection('geminiAnalyses')
         .where('userId', '==', userId)
         .orderBy('createdAt', 'desc')
         .limit(1)
         .get();
       
+      console.log(`Query executed, got ${snapshot.size} results`);
+      
       if (!snapshot.empty) {
-        console.log('Found analysis in Firestore');
-        return snapshot.docs[0].data();
+        console.log(`✅ Found analysis in Firestore with ID: ${snapshot.docs[0].id}`);
+        // Return the document data with ID included
+        return {
+          ...snapshot.docs[0].data(),
+          id: snapshot.docs[0].id
+        };
       }
-      console.log('No analysis found in Firestore');
+      
+      console.log('⚠️ No analysis found in Firestore for this user');
     } catch (firestoreErr) {
-      console.log('Error accessing Firestore:', firestoreErr);
-      // Continue to memory lookup
+      console.error('❌ Error accessing Firestore:', firestoreErr);
+      if (firestoreErr instanceof Error) {
+        console.error('Error details:', firestoreErr.message);
+        // Check for specific Firestore errors
+        if (firestoreErr.message.includes('Missing or insufficient permissions')) {
+          console.error('This appears to be a permissions issue - check Firestore rules');
+        } else if (firestoreErr.message.includes('Failed to get document')) {
+          console.error('The document or collection may not exist');
+        } else if (firestoreErr.message.includes('order by requires an index')) {
+          console.error('Index missing for the query - create a composite index for userId and createdAt');
+        } else if (firestoreErr.message.includes('host')) {
+          console.error('Firestore host configuration issue - check region settings');
+        }
+      }
+      // Continue to memory lookup as fallback
     }
     
-    // Check in-memory store as fallback
+    // Check in-memory store as fallback (keep this part)
     const memoryEntries = Object.values(inMemoryStore)
       .filter(entry => entry.userId === userId)
       .sort((a, b) => b.createdAt - a.createdAt);
     
     if (memoryEntries.length > 0) {
-      console.log('Found analysis in memory store');
+      console.log('Found analysis in memory store as fallback');
       return memoryEntries[0];
     }
     
